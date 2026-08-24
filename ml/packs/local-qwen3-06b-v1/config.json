@@ -1,0 +1,9 @@
+{
+  "runtime": "litert-lm",
+  "primaryFile": "qwen3_0.6b_nothink_q4_block32_ekv1280.litertlm",
+  "capability": "code",
+  "vision": false,
+  "audio": false,
+  "tools": false,
+  "backendDefault": "cpu"
+}

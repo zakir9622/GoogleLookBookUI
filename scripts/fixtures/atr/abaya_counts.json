@@ -1,0 +1,16 @@
+{
+  "id": "abaya_counts",
+  "expected": "ABAYA",
+  "note": "Complete ATR pixel counts (Engine Auto classMap path).",
+  "counts": {
+    "4": 2200,
+    "7": 1200,
+    "6": 1000,
+    "14": 700,
+    "15": 700,
+    "12": 600,
+    "13": 600,
+    "11": 500,
+    "2": 400
+  }
+}

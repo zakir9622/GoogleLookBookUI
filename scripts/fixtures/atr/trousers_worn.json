@@ -1,0 +1,12 @@
+{
+  "id": "trousers_worn",
+  "expected": "LOWER_BODY",
+  "note": "Synthetic worn-photo ATR fractions (person-normalized). Replace with Pixel classMap export when available.",
+  "fractions": {
+    "6": 0.3,
+    "12": 0.12,
+    "13": 0.12,
+    "4": 0.08,
+    "11": 0.06
+  }
+}

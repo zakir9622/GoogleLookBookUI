@@ -1,0 +1,12 @@
+{
+  "id": "hijab_counts",
+  "expected": "HIJAB",
+  "note": "Complete ATR pixel counts (Engine Auto classMap path).",
+  "counts": {
+    "17": 2800,
+    "2": 1200,
+    "1": 200,
+    "11": 1800,
+    "4": 800
+  }
+}

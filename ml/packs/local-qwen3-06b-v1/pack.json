@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "tier": "LITE",
+  "displayName": "Qwen3 0.6B INT4 (LiteRT-LM)",
+  "description": "Fastest offline Code Studio and News chat route - INT4 .litertlm at 331 MB.",
+  "minSpec": {
+    "minRamMb": 4096,
+    "requiresNpu": false,
+    "minSdk": 35
+  }
+}

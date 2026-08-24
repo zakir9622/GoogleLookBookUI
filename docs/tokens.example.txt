@@ -1,0 +1,4 @@
+# Drop this file as Documents/TheLookbook/tokens.txt (or import from Settings)
+HF_TOKEN=hf_YOUR_TOKEN_HERE
+GROQ_API_KEY=gsk_OPTIONAL
+OPENROUTER_API_KEY=sk-or-v1-OPTIONAL

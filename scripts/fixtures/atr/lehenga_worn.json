@@ -1,0 +1,13 @@
+{
+  "id": "lehenga_worn",
+  "expected": "LEHENGA",
+  "note": "Synthetic worn-photo ATR fractions (person-normalized). Replace with Pixel classMap export when available.",
+  "fractions": {
+    "7": 0.22,
+    "5": 0.18,
+    "4": 0.08,
+    "11": 0.07,
+    "14": 0.04,
+    "15": 0.04
+  }
+}

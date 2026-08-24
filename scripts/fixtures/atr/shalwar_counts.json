@@ -1,0 +1,13 @@
+{
+  "id": "shalwar_counts",
+  "expected": "SHALWAR_KAMEEZ",
+  "note": "Complete ATR pixel counts (Engine Auto classMap path).",
+  "counts": {
+    "4": 2400,
+    "6": 2200,
+    "14": 600,
+    "15": 600,
+    "11": 800,
+    "2": 500
+  }
+}

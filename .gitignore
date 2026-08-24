@@ -1,0 +1,32 @@
+# Gradle
+.gradle/
+build/
+.kotlin/
+
+# Local config
+local.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Signing
+*.keystore
+*.jks
+# Stable public sideload key — required for in-place APK updates from GitHub Releases.
+!signing/lookbook-sideload.keystore
+!signing/README.md
+
+# Claude worktrees
+.claude/
+
+# ML tooling
+ml/.venv/
+ml/__pycache__/
+ml/exports/
+
+# Bundled debug model binaries (convenience for local testing; real packs live
+# on Hugging Face). Regenerate with ml/export_lite_pack.py + copy into place.
+composeApp/src/debug/assets/packs/
+dist/

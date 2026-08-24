@@ -1,0 +1,13 @@
+{
+  "id": "kaftan_worn",
+  "expected": "KAFTAN",
+  "note": "Synthetic worn-photo ATR fractions (person-normalized). Replace with Pixel classMap export when available.",
+  "fractions": {
+    "4": 0.18,
+    "7": 0.08,
+    "6": 0.06,
+    "14": 0.09,
+    "15": 0.09,
+    "11": 0.08
+  }
+}

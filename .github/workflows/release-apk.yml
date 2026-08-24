@@ -1,0 +1,125 @@
+name: Release APK
+
+# Builds an installable sideload release APK and publishes it to GitHub Releases.
+# ONLY on push/merge to main (and optional v* tags / manual dispatch).
+# Feature-branch pushes do NOT create releases — use Android CI for PR checks.
+#
+# IMPORTANT: Uses signing/lookbook-sideload.keystore (committed). Never generate a
+# fresh keystore here — that breaks in-place updates ("App not installed").
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify stable sideload keystore
+        run: |
+          test -f signing/lookbook-sideload.keystore
+          keytool -list -keystore signing/lookbook-sideload.keystore \
+            -storepass lookbook-sideload -alias lookbook
+
+      - name: Assemble sideload release APK
+        env:
+          KEYSTORE_PATH: signing/lookbook-sideload.keystore
+          KEYSTORE_PASSWORD: lookbook-sideload
+          KEY_ALIAS: lookbook
+          KEY_PASSWORD: lookbook-sideload
+        run: ./gradlew :composeApp:assembleSideloadRelease --no-daemon
+
+      - name: Stage APK
+        id: stage
+        run: |
+          mkdir -p dist
+          SHORT_SHA="${GITHUB_SHA::7}"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            NAME="the-lookbook-${TAG}.apk"
+            IS_PRERELEASE=false
+            TITLE="The Lookbook ${TAG}"
+          else
+            # main push / merge / workflow_dispatch on main
+            TAG="latest"
+            NAME="the-lookbook-sideload-${{ github.run_number }}.apk"
+            IS_PRERELEASE=false
+            TITLE="The Lookbook — latest APK (build #${{ github.run_number }})"
+          fi
+          cp composeApp/build/outputs/apk/sideload/release/*.apk "dist/${NAME}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${IS_PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "title=${TITLE}" >> "$GITHUB_OUTPUT"
+          ls -lh "dist/${NAME}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: the-lookbook-apk
+          path: dist/*.apk
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.stage.outputs.tag }}
+          APK_NAME: ${{ steps.stage.outputs.name }}
+          IS_PRERELEASE: ${{ steps.stage.outputs.prerelease }}
+          TITLE: ${{ steps.stage.outputs.title }}
+        run: |
+          NOTES="$(cat <<EOF
+          Sideload release APK from \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA}\`).
+
+          Published only from **main** (merge / push). PR branches run Android CI checks only.
+
+          **Install / update:** Pixel 9 / Android 15+ (API 35). Signed with the stable
+          \`signing/lookbook-sideload.keystore\` so later versions update **in place**.
+
+          - **First time on a device that had an older CI APK:** uninstall once, then install this build.
+          - **After v3.0.16+:** open the new APK — Android updates without uninstall.
+
+          **True local:** Try-on, Image Create/Edit, Video still-clip, Code (Gemma), Audio TTS —
+          download packs in **Settings → Model packs**, then **Verify link** for \`HANDSHAKE_OK\`.
+          EOF
+          )"
+          # Rolling latest: replace prior release with this tag
+          gh release delete "${TAG}" --yes --cleanup-tag 2>/dev/null || true
+          EXTRA=()
+          if [[ "${IS_PRERELEASE}" == "true" ]]; then
+            EXTRA+=(--prerelease)
+          fi
+          gh release create "${TAG}" \
+            --target "${GITHUB_SHA}" \
+            --title "${TITLE}" \
+            --notes "${NOTES}" \
+            "${EXTRA[@]}" \
+            "dist/${APK_NAME}"
+
+          # Keep only this rolling latest release — drop every other release/tag.
+          if [[ "${TAG}" == "latest" ]]; then
+            gh release list --limit 100 | while read -r line; do
+              OTHER_TAG="$(echo "$line" | awk -F'\t' '{print $(NF-1)}')"
+              [[ -z "${OTHER_TAG}" || "${OTHER_TAG}" == "latest" ]] && continue
+              echo "Pruning old release: ${OTHER_TAG}"
+              gh release delete "${OTHER_TAG}" --yes --cleanup-tag 2>/dev/null || true
+            done
+          fi
+          echo "Published: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"

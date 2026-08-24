@@ -1,0 +1,12 @@
+{
+  "id": "dupatta_worn",
+  "expected": "DUPATTA",
+  "note": "Synthetic worn-photo ATR fractions (person-normalized). Replace with Pixel classMap export when available.",
+  "fractions": {
+    "17": 0.14,
+    "4": 0.22,
+    "7": 0.06,
+    "11": 0.1,
+    "6": 0.04
+  }
+}

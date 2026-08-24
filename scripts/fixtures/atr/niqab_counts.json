@@ -1,0 +1,12 @@
+{
+  "id": "niqab_counts",
+  "expected": "NIQAB",
+  "note": "Complete ATR pixel counts \u2014 face nearly gone, strong scarf.",
+  "counts": {
+    "17": 3200,
+    "1": 400,
+    "11": 150,
+    "2": 600,
+    "4": 1000
+  }
+}

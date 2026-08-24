@@ -1,0 +1,12 @@
+{
+  "id": "niqab_worn",
+  "expected": "NIQAB",
+  "note": "Synthetic worn-photo ATR fractions (person-normalized). Replace with Pixel classMap export when available.",
+  "fractions": {
+    "17": 0.32,
+    "1": 0.04,
+    "11": 0.02,
+    "2": 0.06,
+    "4": 0.1
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "kind": "desktop-cpu-reference",
+  "note": "NOT on-device — desktop onnxruntime CPUExecutionProvider only",
+  "capturedAt": "2026-08-23",
+  "host": "cloud-agent CI VM",
+  "lite_v1": [
+    {
+      "model": "garment_seg.onnx",
+      "runs_ms": [308.2, 287.9, 293.6],
+      "avg_ms": 296.6,
+      "input": "320x320"
+    },
+    {
+      "model": "human_parse.onnx",
+      "runs_ms": [493.2, 540.7, 514.8],
+      "avg_ms": 516.2,
+      "input": "512x512"
+    }
+  ]
+}

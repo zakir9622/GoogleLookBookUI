@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude API keys and large pack trees from cloud backup. -->
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="file" path="packs/" />
+    <exclude domain="external" path="." />
+</full-backup-content>

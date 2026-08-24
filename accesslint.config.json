@@ -1,0 +1,31 @@
+{
+  "targets": {
+    "dev": {
+      "url": "http://localhost:8080",
+      "description": "Optional web mirror only — Compose Android a11y sweeps need a device/emulator + CDP (see .claude/skills/accesslint-scan). Config completeness ≠ sweep done."
+    }
+  },
+  "defaultTarget": "dev",
+  "routes": [
+    "studio/tryon",
+    "studio/image",
+    "studio/video",
+    "studio/code",
+    "studio/news",
+    "settings",
+    "settings/cloud",
+    "settings/engines",
+    "settings/appearance",
+    "settings/diagnostics",
+    "usage",
+    "packs",
+    "wardrobe",
+    "help",
+    "privacy",
+    "garment",
+    "casting",
+    "person",
+    "generate",
+    "result"
+  ]
+}

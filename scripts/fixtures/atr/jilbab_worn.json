@@ -1,0 +1,15 @@
+{
+  "id": "jilbab_worn",
+  "expected": "JILBAB",
+  "note": "Synthetic worn-photo ATR fractions (person-normalized). Replace with Pixel classMap export when available.",
+  "fractions": {
+    "4": 0.2,
+    "7": 0.08,
+    "6": 0.08,
+    "14": 0.1,
+    "15": 0.1,
+    "11": 0.07,
+    "12": 0.04,
+    "13": 0.04
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "The Lookbook",
+  "description": "Modest fashion atelier with on-device and cloud generative AI styling.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

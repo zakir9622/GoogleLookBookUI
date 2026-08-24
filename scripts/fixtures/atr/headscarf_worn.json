@@ -1,0 +1,12 @@
+{
+  "id": "headscarf_worn",
+  "expected": "HEADSCARF",
+  "note": "Hat-dominant head cover, little torso.",
+  "fractions": {
+    "1": 0.18,
+    "2": 0.1,
+    "11": 0.14,
+    "4": 0.06,
+    "17": 0.05
+  }
+}

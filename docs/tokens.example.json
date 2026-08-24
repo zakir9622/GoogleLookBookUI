@@ -1,0 +1,5 @@
+{
+  "hfToken": "hf_YOUR_TOKEN_HERE",
+  "groqApiKey": "gsk_OPTIONAL",
+  "openRouterApiKey": "sk-or-v1-OPTIONAL"
+}

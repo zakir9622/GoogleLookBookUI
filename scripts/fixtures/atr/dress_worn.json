@@ -1,0 +1,13 @@
+{
+  "id": "dress_worn",
+  "expected": "DRESS",
+  "note": "Synthetic worn-photo ATR fractions (person-normalized). Replace with Pixel classMap export when available.",
+  "fractions": {
+    "7": 0.36,
+    "4": 0.04,
+    "14": 0.05,
+    "15": 0.05,
+    "11": 0.08,
+    "6": 0.02
+  }
+}
