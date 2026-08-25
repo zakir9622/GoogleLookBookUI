@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">The Lookbook</string>
+    <string name="app_tagline">Modest fashion atelier · on-device AI</string>
+
+    <!-- Permission rationales (also surfaced in Help & FAQ) -->
+    <string name="perm_notifications_title">Download progress alerts</string>
+    <string name="perm_notifications_rationale">Allow notifications so The Lookbook can show model-pack download progress and completion. You can change this anytime in system Settings.</string>
+    <string name="perm_camera_title">Camera for garment capture</string>
+    <string name="perm_camera_rationale">Camera access lets you photograph a garment for try-on. You can always choose a photo from the system picker instead.</string>
+    <string name="perm_storage_title">Durable storage</string>
+    <string name="perm_storage_rationale">All-files access stores model packs and API keys under Documents/TheLookbook so they survive uninstall.</string>
+
+    <string name="help_title">Help &amp; FAQ</string>
+    <string name="usage_title">Cloud usage</string>
+    <string name="wardrobe_title">Looks gallery</string>
+    <string name="packs_title">Model packs</string>
+    <string name="settings_title">Settings</string>
+    <string name="cancel_generation">Cancel generation</string>
+</resources>

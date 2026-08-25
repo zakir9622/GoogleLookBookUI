@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="300dp"
+    android:height="400dp"
+    android:viewportWidth="300"
+    android:viewportHeight="400">
+    <path android:fillColor="#1E1E24" android:pathData="M0,0 h300 v400 h-300 Z" />
+    <path android:fillColor="#3A3A44" android:pathData="M138,70 m-20,0 a20,20 0 1,0 40,0 a20,20 0 1,0 -40,0" />
+    <path android:fillColor="#3A3A44" android:pathData="M131,90 h14 v12 h-14 Z M112,104 Q140,96 168,104 L164,208 Q138,216 116,208 Z" />
+    <path android:fillColor="#3A3A44" android:pathData="M110,108 Q98,150 104,192 L114,190 Q112,150 120,112 Z M170,108 Q184,148 196,180 L188,188 Q176,155 162,114 Z" />
+    <!-- seated legs: thighs forward, shins down -->
+    <path android:fillColor="#3A3A44" android:pathData="M118,210 L196,222 L196,240 L124,232 Z M180,238 L182,330 h16 L198,238 Z" />
+    <!-- bench line -->
+    <path android:fillColor="#2A2A32" android:pathData="M96,238 h130 v10 h-130 Z M104,248 l-4,84 h10 l6,-84 Z" />
+</vector>

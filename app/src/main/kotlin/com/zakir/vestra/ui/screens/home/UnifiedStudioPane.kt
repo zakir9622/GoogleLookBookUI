@@ -54,8 +54,6 @@ import com.zakir.vestra.ui.components.GlassErrorBanner
 import com.zakir.vestra.ui.components.GlassOptionToggle
 import com.zakir.vestra.ui.components.GlassPill
 import com.zakir.vestra.ui.components.GlassSectionLabel
-import com.zakir.vestra.ui.components.LiteRtGemmaStatusIndicator
-import com.zakir.vestra.ui.components.LiteRtStatusIndicator
 import com.zakir.vestra.ui.components.ModelPickerSheet
 import com.zakir.vestra.ui.components.OnDevicePickerEntry
 import com.zakir.vestra.ui.components.PromptComposer
@@ -335,56 +333,49 @@ fun UnifiedStudioPane(
                 )
             }
         }
-        if (capability == AiCapability.CODE) {
-            Spacer(Modifier.height(10.dp))
-            LiteRtGemmaStatusIndicator(
-                viewModel = viewModel,
-                packManager = packManager,
-                onOpenPacks = onOpenSettings,
-            )
-        } else {
-            // Model load state, right where the user is looking after picking a model.
-            when (val w = warmup) {
-                is GenerativeViewModel.Warmup.Loading -> {
-                    Spacer(Modifier.height(10.dp))
-                    GlassCard {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = VestraColors.Accent,
+        // Model load state, right where the user is looking after picking a model. A multi-GB
+        // pack takes seconds to a minute to initialize; saying so beats an unexplained pause,
+        // which is what the Gallery app gets right and this app did not.
+        when (val w = warmup) {
+            is GenerativeViewModel.Warmup.Loading -> {
+                Spacer(Modifier.height(10.dp))
+                GlassCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = VestraColors.Accent,
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                "Initializing ${w.label}",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = VestraColors.Ink,
                             )
-                            Spacer(Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    "Initializing ${w.label}",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = VestraColors.Ink,
-                                )
-                                Text(
-                                    "First load only — this can take up to a minute.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = VestraColors.InkMuted,
-                                )
-                            }
+                            Text(
+                                "First load only — this can take up to a minute.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = VestraColors.InkMuted,
+                            )
                         }
                     }
                 }
-                is GenerativeViewModel.Warmup.Ready -> {
-                    Spacer(Modifier.height(10.dp))
-                    GlassPill(text = "${w.label} · loaded and ready", active = true)
-                }
-                is GenerativeViewModel.Warmup.Failed -> {
-                    Spacer(Modifier.height(10.dp))
-                    GlassErrorBanner(
-                        message = "${w.label} could not load: ${w.reason}",
-                        onRetry = { viewModel.warmUpLocal(effectiveCapability) },
-                        retryLabel = "Retry load",
-                        onDismiss = null,
-                    )
-                }
-                GenerativeViewModel.Warmup.Idle -> Unit
             }
+            is GenerativeViewModel.Warmup.Ready -> {
+                Spacer(Modifier.height(10.dp))
+                GlassPill(text = "${w.label} · loaded and ready", active = true)
+            }
+            is GenerativeViewModel.Warmup.Failed -> {
+                Spacer(Modifier.height(10.dp))
+                GlassErrorBanner(
+                    message = "${w.label} could not load: ${w.reason}",
+                    onRetry = { viewModel.warmUpLocal(effectiveCapability) },
+                    retryLabel = "Retry load",
+                    onDismiss = null,
+                )
+            }
+            GenerativeViewModel.Warmup.Idle -> Unit
         }
 
         Spacer(Modifier.height(8.dp))
