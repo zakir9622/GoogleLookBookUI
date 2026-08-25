@@ -48,8 +48,18 @@ object TestTags {
     // from this screen's picker until the global cloud toggle is on), so Appium can drive the
     // whole "type a prompt, get a local reply" loop without ever touching a network call.
     const val CHAT_REFRESH_BUTTON = "chat_news_refresh"
+    const val CHAT_LOG_VIEW = "chat_log_view"
+    const val CHAT_LOG_TOGGLE = "chat_log_toggle"
+    fun chatModuleTab(moduleId: String): String = "chat_module_$moduleId"
     fun chatHeadlineCard(index: Int): String = "chat_headline_$index"
     fun chatMessageBubble(index: Int, role: String): String = "chat_message_${index}_$role"
+    fun chatMessageMetrics(index: Int): String = "chat_message_metrics_$index"
+    fun chatMessageTtft(index: Int): String = "chat_message_ttft_$index"
+    fun chatMessageDuration(index: Int): String = "chat_message_duration_$index"
+
+    // Quick prompt carousel above persistent dock
+    const val QUICK_PROMPT_CAROUSEL = "quick_prompt_carousel"
+    fun quickPromptChip(index: Int): String = "quick_prompt_chip_$index"
 
     // Processing mode card (SettingsCloudSection.kt) — the on-device-only / cloud-allowed choice.
     const val PROCESSING_MODE_LOCAL = "processing_mode_local"

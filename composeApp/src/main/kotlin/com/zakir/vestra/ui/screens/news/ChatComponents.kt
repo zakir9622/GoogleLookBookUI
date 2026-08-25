@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,9 +37,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Done
@@ -47,7 +50,9 @@ import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SmartToy
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,6 +64,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -278,6 +284,117 @@ fun ChatMessageBubble(
                     ),
                     color = VestraColors.Ink,
                 )
+
+                // TTFT and Total Generation Time Metrics for Assistant Responses
+                val ttft = message.ttftMs
+                val duration = message.durationMs
+                val tokensOut = message.tokensOut
+                if (!isUser && (ttft != null || duration != null)) {
+                    Spacer(Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = VestraColors.Canvas.copy(alpha = 0.45f),
+                        border = BorderStroke(1.dp, VestraColors.GlassBorder.copy(alpha = 0.35f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag(TestTags.chatMessageMetrics(index)),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            // TTFT Metric (Time to First Token)
+                            if (ttft != null) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.testTag(TestTags.chatMessageTtft(index)),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Bolt,
+                                        contentDescription = "Time to First Token",
+                                        modifier = Modifier.size(12.dp),
+                                        tint = VestraColors.Accent,
+                                    )
+                                    Spacer(Modifier.width(3.dp))
+                                    Text(
+                                        text = "TTFT ",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                        ),
+                                        color = VestraColors.InkMuted,
+                                    )
+                                    Text(
+                                        text = if (ttft < 1000) "${ttft}ms" else String.format(Locale.US, "%.2fs", ttft / 1000.0),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontFamily = FontFamily.Monospace,
+                                        ),
+                                        color = VestraColors.Accent,
+                                    )
+                                }
+                            }
+
+                            // Total Generation Time
+                            if (duration != null) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.testTag(TestTags.chatMessageDuration(index)),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Schedule,
+                                        contentDescription = "Total Generation Time",
+                                        modifier = Modifier.size(12.dp),
+                                        tint = VestraColors.AccentSoft,
+                                    )
+                                    Spacer(Modifier.width(3.dp))
+                                    Text(
+                                        text = "TOTAL ",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                        ),
+                                        color = VestraColors.InkMuted,
+                                    )
+                                    Text(
+                                        text = if (duration < 1000) "${duration}ms" else String.format(Locale.US, "%.2fs", duration / 1000.0),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontFamily = FontFamily.Monospace,
+                                        ),
+                                        color = VestraColors.Ink,
+                                    )
+                                }
+                            }
+
+                            // Token Throughput Speed
+                            if (tokensOut != null && tokensOut > 0 && duration != null && duration > 0) {
+                                val speed = tokensOut * 1000.0 / duration
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Speed,
+                                        contentDescription = "Throughput",
+                                        modifier = Modifier.size(11.dp),
+                                        tint = VestraColors.InkMuted,
+                                    )
+                                    Spacer(Modifier.width(2.dp))
+                                    Text(
+                                        text = String.format(Locale.US, "%.1ft/s", speed),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Normal,
+                                            fontFamily = FontFamily.Monospace,
+                                        ),
+                                        color = VestraColors.InkMuted,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -728,19 +845,36 @@ fun ChatPersistentInputBar(
     onSend: () -> Unit,
     onStop: () -> Unit,
     onModelClick: (() -> Unit)? = null,
+    logs: List<String> = emptyList(),
+    quickPrompts: List<com.zakir.vestra.ui.components.QuickPromptItem> = emptyList(),
+    onSelectQuickPrompt: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
     placeholder: String = "Message Lookbook or tap a headline…",
 ) {
-    Surface(
+    var logsExpanded by remember { mutableStateOf(false) }
+
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(RadiusTokens.lg),
-        color = VestraColors.GlassFillStrong,
-        shadowElevation = 4.dp,
+            .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
+        // Quick Prompts Carousel above the input container
+        if (quickPrompts.isNotEmpty() && onSelectQuickPrompt != null && !busy) {
+            com.zakir.vestra.ui.components.QuickPromptCarousel(
+                prompts = quickPrompts,
+                onSelectPrompt = onSelectQuickPrompt,
+                enabled = enabled && !busy,
+            )
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(RadiusTokens.lg),
+            color = VestraColors.GlassFillStrong,
+            shadowElevation = 4.dp,
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -756,6 +890,110 @@ fun ChatPersistentInputBar(
                 )
                 .padding(horizontal = 12.dp, vertical = 10.dp),
         ) {
+            // Docked Live Log Viewer (Collapsible / Scrollable)
+            if (logs.isNotEmpty() || busy) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .clip(RoundedCornerShape(RadiusTokens.md))
+                        .background(VestraColors.SurfaceRaised)
+                        .border(1.dp, VestraColors.GlassBorder.copy(alpha = 0.4f), RoundedCornerShape(RadiusTokens.md))
+                        .testTag(TestTags.CHAT_LOG_VIEW),
+                    color = VestraColors.SurfaceRaised,
+                ) {
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { logsExpanded = !logsExpanded }
+                                .testTag(TestTags.CHAT_LOG_TOGGLE),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(if (busy) VestraColors.Accent else VestraColors.AccentSoft),
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = if (busy) "LIVE TELEMETRY STREAM" else "ENGINE EVENT LOG",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        letterSpacing = 0.8.sp,
+                                        fontSize = 10.sp,
+                                    ),
+                                    color = if (busy) VestraColors.Accent else VestraColors.InkMuted,
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "${logs.size} events",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    color = VestraColors.InkMuted,
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = if (logsExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                                    contentDescription = if (logsExpanded) "Collapse logs" else "Expand logs",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = VestraColors.InkMuted,
+                                )
+                            }
+                        }
+
+                        if (logsExpanded || busy) {
+                            Spacer(Modifier.height(6.dp))
+                            val logScrollState = rememberScrollState()
+                            LaunchedEffect(logs.size) {
+                                if (logs.isNotEmpty()) {
+                                    logScrollState.animateScrollTo(logScrollState.maxValue)
+                                }
+                            }
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(if (logsExpanded) 110.dp else 56.dp)
+                                    .background(VestraColors.Canvas.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                    .padding(6.dp)
+                                    .verticalScroll(logScrollState),
+                            ) {
+                                if (logs.isEmpty()) {
+                                    Text(
+                                        text = "Awaiting engine dispatches...",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                            fontSize = 10.sp,
+                                        ),
+                                        color = VestraColors.InkMuted.copy(alpha = 0.6f),
+                                    )
+                                } else {
+                                    logs.forEach { line ->
+                                        Text(
+                                            text = line,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                fontSize = 10.sp,
+                                                lineHeight = 13.sp,
+                                            ),
+                                            color = when {
+                                                line.contains("ERROR", ignoreCase = true) || line.contains("failed", ignoreCase = true) -> VestraColors.Danger
+                                                line.contains("WARN", ignoreCase = true) -> VestraColors.AccentSoft
+                                                line.contains("LiteRT", ignoreCase = true) -> VestraColors.Accent
+                                                else -> VestraColors.InkMuted
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Top control row: Model Pill + Prompt length / Clear
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -914,4 +1152,5 @@ fun ChatPersistentInputBar(
             }
         }
     }
+}
 }

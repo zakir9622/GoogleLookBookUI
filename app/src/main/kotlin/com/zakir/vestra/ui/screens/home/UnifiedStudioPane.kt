@@ -6,7 +6,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -18,28 +22,36 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.zakir.vestra.shared.cloud.AiCapability
 import com.zakir.vestra.shared.cloud.CloudModelCatalog
 import com.zakir.vestra.shared.cloud.FreeCloudDiscovery
@@ -56,6 +68,7 @@ import com.zakir.vestra.ui.components.GlassPill
 import com.zakir.vestra.ui.components.GlassSectionLabel
 import com.zakir.vestra.ui.components.ModelPickerSheet
 import com.zakir.vestra.ui.components.OnDevicePickerEntry
+import com.zakir.vestra.ui.components.QuickPromptItem
 import com.zakir.vestra.ui.components.PromptComposer
 import com.zakir.vestra.ui.components.ResultPane
 import com.zakir.vestra.ui.theme.VestraColors
@@ -64,11 +77,6 @@ import kotlinx.coroutines.withContext
 
 /**
  * Runs a pack-readiness probe off the UI thread.
- *
- * The probes stat files on disk, so calling them directly from a composable body put
- * file-system work on the main thread on every recomposition. [keys] re-runs the probe when the
- * installed packs change or a generation starts/finishes, which is the only time the answer can
- * actually differ.
  */
 @Composable
 private fun produceLocalReadiness(
@@ -133,10 +141,6 @@ fun UnifiedStudioPane(
     val preflightChip = viewModel.preflightLabel(effectiveCapability)
     val busy = state is GenerativeState.Running || state is GenerativeState.Preparing
 
-    // These each stat pack files on disk. Called straight from the composable body they ran on
-    // the main thread on every recomposition — and ResultPane ticks once a second while a
-    // generation is running, so that was five file-system probes per second on the UI thread.
-    // Hoist them onto Dispatchers.IO and recompute only when the installed packs change.
     val localImageReady by produceLocalReadiness(packStates, busy) { viewModel.localImageOfflineReady() }
     val localImageEditReady by produceLocalReadiness(packStates, busy) { viewModel.localImageEditOfflineReady() }
     val localCodeReady by produceLocalReadiness(packStates, busy) { viewModel.localCodeOfflineReady() }
@@ -153,8 +157,7 @@ fun UnifiedStudioPane(
 
     var showModelPicker by remember { mutableStateOf(false) }
     var advancedExpanded by remember { mutableStateOf(false) }
-    // Cloud rows must disappear entirely when the master toggle is off — otherwise the picker
-    // offers models that preflight and the runtime gate will refuse to run.
+
     val pickerModels = remember(effectiveCapability, freeCloudDiscovery, cloudModelsEnabled) {
         if (!cloudModelsEnabled) {
             emptyList()
@@ -191,7 +194,6 @@ fun UnifiedStudioPane(
         }
     }
 
-    // Picking a model should load it, not defer the cost to the first prompt.
     LaunchedEffect(selectedId, effectiveCapability) {
         viewModel.warmUpLocal(effectiveCapability)
     }
@@ -200,11 +202,36 @@ fun UnifiedStudioPane(
         viewModel.setReference(uri?.toString())
     }
 
-    val subtitle = when (capability) {
-        AiCapability.IMAGE_GEN -> LookbookCopy.STUDIO_IMAGE
-        AiCapability.VIDEO -> LookbookCopy.STUDIO_VIDEO
-        AiCapability.CODE -> LookbookCopy.STUDIO_CODE
-        else -> "Studio"
+    val moduleTitle = when (capability) {
+        AiCapability.IMAGE_GEN -> "IMAGE GENERATION MODULE"
+        AiCapability.VIDEO -> "VIDEO GENERATION MODULE"
+        AiCapability.CODE -> "CODE GENERATION MODULE"
+        AiCapability.AUDIO -> "AUDIO STUDIO MODULE"
+        else -> "GENERATION MODULE"
+    }
+
+    val moduleDescription = when (capability) {
+        AiCapability.IMAGE_GEN ->
+            "Renders high-definition modest couture lookbooks and fashion photography with on-device tiny-SD or ultra-speed cloud diffusion models."
+        AiCapability.VIDEO ->
+            "Generates motion sequences and still-clip runway transitions using AI video pipelines."
+        AiCapability.CODE ->
+            "Synthesizes production Kotlin Compose UI code and architectural refactors with on-device Gemma or cloud reasoning LLMs."
+        AiCapability.AUDIO ->
+            "Generates speech waveforms and applies real-time DSP voice transformations."
+        else -> "Interactive generative AI atelier studio."
+    }
+
+    val modelDisplayLabel = when {
+        effectiveCapability == AiCapability.IMAGE_GEN && localImageReady && reference == null ->
+            "Local tiny-SD (offline)"
+        effectiveCapability == AiCapability.IMAGE_EDIT && localImageEditReady ->
+            "Local img2img (offline)"
+        effectiveCapability == AiCapability.CODE && localCodeReady ->
+            "Local Gemma (offline)"
+        effectiveCapability == AiCapability.VIDEO && localVideoReady ->
+            "Local still-clip (offline)"
+        else -> provider.displayName
     }
 
     val placeholder = when (capability) {
@@ -245,303 +272,337 @@ fun UnifiedStudioPane(
         else -> Unit
     }
 
-    // Two regions, not one long scroll: generated content scrolls in the top region while the
-    // composer stays docked at the bottom of the screen. Previously everything lived in a single
-    // verticalScroll column, so the composer drifted mid-scroll and results pushed it off-screen.
-    Column(modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 8.dp),
-        ) {
-        GlassSectionLabel(
-            subtitle.uppercase(),
-            color = when (capability) {
-                AiCapability.IMAGE_GEN, AiCapability.IMAGE_EDIT, AiCapability.TRY_ON -> VestraColors.ModalityImage
-                AiCapability.VIDEO -> VestraColors.ModalityVideo
-                AiCapability.CODE -> VestraColors.ModalityCode
-                AiCapability.AUDIO -> VestraColors.ModalityAudio
-            },
-        )
-        Text(
-            when (capability) {
-                AiCapability.IMAGE_GEN, AiCapability.IMAGE_EDIT ->
-                    when {
-                        reference != null && localImageEditReady ->
-                            "Local img2img ready offline — Edit runs on-device."
-                        reference == null && localImageReady ->
-                            "Local tiny-SD ready offline — Create Studio runs on-device."
-                        cloudModelsEnabled ->
-                            "Cloud, until you download a local pack. Settings → Model packs → local-sdturbo-v1 (~1.06 GB) for offline."
-                        else ->
-                            "On-device only (cloud is off). Download local-sdturbo-v1 (~1.06 GB) in Settings → Model packs to generate."
-                    }
-                AiCapability.VIDEO ->
-                    when {
-                        localVideoReady ->
-                            "Local still-clip ready — short on-device MP4 from tiny-SD (not diffusion video)."
-                        cloudModelsEnabled ->
-                            "Cloud HF Spaces, until you download local-sdturbo-v1 for offline still-clips."
-                        else ->
-                            "On-device only (cloud is off). Download local-sdturbo-v1 in Settings → Model packs to generate."
-                    }
-                AiCapability.AUDIO ->
-                    "Device TTS works offline + voice-changer knobs. Cloud TTS optional."
-                AiCapability.CODE ->
-                    when {
-                        localCodeReady ->
-                            "Local Gemma 4 / legacy Gemma ready offline — Code Studio runs on-device."
-                        cloudModelsEnabled ->
-                            "Cloud, until you download a local pack. local-gemma-4-e2b-v1 (~2.6 GB) for offline."
-                        else ->
-                            "On-device only (cloud is off). Download local-gemma-4-e2b-v1 (~2.6 GB) in Settings → Model packs to generate."
-                    }
-                else -> estimate
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = VestraColors.InkMuted,
-        )
-        Spacer(Modifier.height(4.dp))
-        // FlowRow, not Row: `estimate` can be a long provider sentence, and in a plain Row it
-        // consumed the full width and squeezed the chips beside it down to one-character-wide
-        // columns of vertical text. FlowRow wraps them onto the next line instead.
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                estimate,
-                style = MaterialTheme.typography.labelSmall,
-                color = VestraColors.InkMuted,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (preflightChip != null && preflight == null) {
-                GlassPill(text = preflightChip, active = true)
-            }
-            val lastUsedName = lastUsedId?.let { id -> CloudModelCatalog.byId(id)?.displayName }
-            if (lastUsedName != null) {
-                Text(
-                    "Last: $lastUsedName",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = VestraColors.Accent,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+    val scrollState = rememberScrollState()
+
+    val quickPromptItems = remember(capability, reference) {
+        when (capability) {
+            AiCapability.IMAGE_GEN -> if (reference == null) {
+                listOf(
+                    QuickPromptItem("Emerald abaya in a Lahore bazaar, soft afternoon light", "Editorial"),
+                    QuickPromptItem("Navy silk hijab portrait, studio softbox", "Portrait"),
+                    QuickPromptItem("Cream linen shalwar kameez, courtyard architecture", "Couture"),
+                    QuickPromptItem("Textured raw silk kaftan with gold embroidery", "Detail"),
+                )
+            } else {
+                listOf(
+                    QuickPromptItem("Change fabric to navy raw silk with soft studio lighting", "Recolor"),
+                    QuickPromptItem("Add gold zardozi embroidery along the lapels", "Embroidery"),
+                    QuickPromptItem("Convert to cinematic outdoor golden hour backdrop", "Lighting"),
                 )
             }
+            AiCapability.VIDEO -> listOf(
+                QuickPromptItem("Woman in black abaya walking through a Karachi night bazaar", "Cinematic"),
+                QuickPromptItem("Slow pan across embroidered green shalwar kameez in soft daylight", "Runway"),
+                QuickPromptItem("Hijabi model turning toward camera, linen texture detail", "Portrait"),
+            )
+            AiCapability.CODE -> listOf(
+                QuickPromptItem("Write a Kotlin Compose frosted glass card with border highlight", "UI Composable"),
+                QuickPromptItem("Explain how to resume an Android OkHttp download with Range headers", "Networking"),
+                QuickPromptItem("Refactor this into a StateFlow ViewModel pattern (paste code)", "Architecture"),
+            )
+            else -> emptyList()
         }
-        // Model load state, right where the user is looking after picking a model. A multi-GB
-        // pack takes seconds to a minute to initialize; saying so beats an unexplained pause,
-        // which is what the Gallery app gets right and this app did not.
-        when (val w = warmup) {
-            is GenerativeViewModel.Warmup.Loading -> {
-                Spacer(Modifier.height(10.dp))
-                GlassCard {
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(VestraColors.Canvas),
+    ) {
+        // Scrollable Middle Generation Canvas
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+        ) {
+            // TOP SECTION MODULE: Module Header & Initialized Model Status Card
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(VestraColors.SurfaceRaised)
+                    .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(18.dp))
+                    .padding(14.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(VestraColors.Accent),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = moduleTitle,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.2.sp,
+                            ),
+                            color = VestraColors.Ink,
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(VestraColors.GlassFill)
+                            .border(1.dp, VestraColors.Accent.copy(alpha = 0.5f), RoundedCornerShape(50))
+                            .clickable { showModelPicker = true }
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Text(
+                            text = modelDisplayLabel,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            ),
                             color = VestraColors.Accent,
                         )
-                        Spacer(Modifier.width(10.dp))
-                        Column {
+                    }
+                }
+
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = moduleDescription,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = VestraColors.InkMuted,
+                )
+
+                // Model Initialization & Warmup Status
+                Spacer(Modifier.height(8.dp))
+                when (val w = warmup) {
+                    is GenerativeViewModel.Warmup.Loading -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(VestraColors.GlassFill)
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp,
+                                color = VestraColors.Accent,
+                            )
+                            Spacer(Modifier.width(8.dp))
                             Text(
-                                "Initializing ${w.label}",
-                                style = MaterialTheme.typography.titleSmall,
+                                text = "Initializing ${w.label} weights…",
+                                style = MaterialTheme.typography.labelSmall,
                                 color = VestraColors.Ink,
                             )
+                        }
+                    }
+                    is GenerativeViewModel.Warmup.Ready -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(VestraColors.GlassFill)
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                        ) {
+                            Icon(
+                                Icons.Outlined.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = VestraColors.Accent,
+                            )
+                            Spacer(Modifier.width(8.dp))
                             Text(
-                                "First load only — this can take up to a minute.",
-                                style = MaterialTheme.typography.bodySmall,
+                                text = "${w.label} initialized & ready",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = VestraColors.Ink,
+                            )
+                        }
+                    }
+                    is GenerativeViewModel.Warmup.Failed -> {
+                        GlassErrorBanner(
+                            message = "${w.label} load issue: ${w.reason}",
+                            onRetry = { viewModel.warmUpLocal(effectiveCapability) },
+                            retryLabel = "Retry load",
+                            onDismiss = null,
+                        )
+                    }
+                    GenerativeViewModel.Warmup.Idle -> {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                estimate,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                 color = VestraColors.InkMuted,
                             )
+                            if (preflightChip != null && preflight == null) {
+                                GlassPill(text = preflightChip, active = true)
+                            }
                         }
                     }
                 }
             }
-            is GenerativeViewModel.Warmup.Ready -> {
-                Spacer(Modifier.height(10.dp))
-                GlassPill(text = "${w.label} · loaded and ready", active = true)
-            }
-            is GenerativeViewModel.Warmup.Failed -> {
-                Spacer(Modifier.height(10.dp))
+
+            Spacer(Modifier.height(10.dp))
+
+            // Preflight error banner
+            if (preflight != null) {
                 GlassErrorBanner(
-                    message = "${w.label} could not load: ${w.reason}",
-                    onRetry = { viewModel.warmUpLocal(effectiveCapability) },
-                    retryLabel = "Retry load",
-                    onDismiss = null,
+                    message = preflight!!,
+                    onRetry = onOpenSettings ?: { showModelPicker = true },
+                    retryLabel = if (onOpenSettings != null) LookbookCopy.ACTION_OPEN_SETTINGS else "Choose model",
+                    onDismiss = { viewModel.clearResult() },
                 )
+                Spacer(Modifier.height(10.dp))
             }
-            GenerativeViewModel.Warmup.Idle -> Unit
+
+            // MIDDLE GENERATION SECTION: Protractored Message & Artifact Canvas
+            val hasResult = (viewModel.resultBelongsTo(effectiveCapability) || viewModel.resultBelongsTo(capability)) && state != null
+
+            if (!hasResult && !busy) {
+                // Empty state with quick starter prompts
+                if (examples.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                    ) {
+                        Text(
+                            "CURATED PROMPT STARTERS",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp,
+                            ),
+                            color = VestraColors.Accent,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        ExamplePromptRow(
+                            examples = examples,
+                            enabled = !busy,
+                            onPick = viewModel::setPrompt,
+                        )
+                    }
+                }
+            } else {
+                // Active / Finished Generation Deliverable Stream
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    val failedMsg = (state as? GenerativeState.Failed)?.message.orEmpty()
+                    val quotaOrCredits = failedMsg.contains("ZeroGPU", ignoreCase = true) ||
+                        failedMsg.contains("monthly credits", ignoreCase = true) ||
+                        failedMsg.contains("Inference Providers", ignoreCase = true)
+
+                    ResultPane(
+                        state = state,
+                        liveLog = emptyList(), // Live logs rendered in persistent bottom dock
+                        generationStartedAtMs = generationStartedAtMs,
+                        onCancel = { viewModel.forceStop() },
+                        onRetry = {
+                            viewModel.clearResult()
+                            if (quotaOrCredits) {
+                                showModelPicker = true
+                            } else {
+                                onGenerate()
+                            }
+                        },
+                        retryLabel = if (quotaOrCredits) "Choose model" else LookbookCopy.ACTION_RETRY,
+                        onDismiss = viewModel::clearResult,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
         }
 
-        Spacer(Modifier.height(8.dp))
-        AdvancedAssistSection(
-            expanded = advancedExpanded,
-            onToggle = { advancedExpanded = !advancedExpanded },
+        // BOTTOM PERSISTENT DOCK: Attached chatbox + Live Telemetry & Countdown Box
+        PromptComposer(
+            prompt = prompt,
+            onPromptChange = viewModel::setPrompt,
+            modelLabel = modelDisplayLabel,
+            assistCount = assistCount,
             busy = busy,
-            capability = capability,
-            bypassFilter = bypassFilter,
-            fashionContext = fashionContext,
-            detailBoost = detailBoost,
-            qualityGuard = qualityGuard,
-            analyzeReference = analyzeReference,
-            localVisionReady = localVisionReady,
-            pragmatic = pragmatic,
-            creative = creative,
-            onBypassFilter = { viewModel.setBypassFilter(!bypassFilter) },
-            onFashionContext = { viewModel.setFashionContext(!fashionContext) },
-            onDetailBoost = { viewModel.setDetailBoost(!detailBoost) },
-            onQualityGuard = { viewModel.setQualityGuard(!qualityGuard) },
-            onAnalyzeReference = { viewModel.setAnalyzeReference(!analyzeReference) },
-            onPragmatic = { viewModel.setPragmaticMode(!pragmatic) },
-            onCreative = { viewModel.setCreativeMode(!creative) },
+            enabled = true,
+            onModelClick = { showModelPicker = true },
+            onSend = ::onGenerate,
+            onStop = { viewModel.cancel() },
+            placeholder = placeholder,
+            referenceUri = reference,
+            onAddReference = if (capability == AiCapability.IMAGE_GEN || capability == AiCapability.VIDEO) {
+                { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+            } else null,
+            onClearReference = { viewModel.setReference(null) },
+            liveLog = liveLog,
+            generationStartedAtMs = generationStartedAtMs,
+            deadlineEpochMs = (state as? GenerativeState.Running)?.deadlineEpochMs,
+            showLiveDock = true,
+            quickPrompts = quickPromptItems,
+            onSelectQuickPrompt = viewModel::setPrompt,
+            assistToggles = {
+                AdvancedAssistRow(
+                    capability = capability,
+                    bypassFilter = bypassFilter,
+                    fashionContext = fashionContext,
+                    detailBoost = detailBoost,
+                    qualityGuard = qualityGuard,
+                    analyzeReference = analyzeReference,
+                    localVisionReady = localVisionReady,
+                    pragmatic = pragmatic,
+                    creative = creative,
+                    onBypassFilter = { viewModel.setBypassFilter(!bypassFilter) },
+                    onFashionContext = { viewModel.setFashionContext(!fashionContext) },
+                    onDetailBoost = { viewModel.setDetailBoost(!detailBoost) },
+                    onQualityGuard = { viewModel.setQualityGuard(!qualityGuard) },
+                    onAnalyzeReference = { viewModel.setAnalyzeReference(!analyzeReference) },
+                    onPragmatic = { viewModel.setPragmaticMode(!pragmatic) },
+                    onCreative = { viewModel.setCreativeMode(!creative) },
+                )
+            },
         )
-
-        if (examples.isNotEmpty()) {
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "EXAMPLES",
-                style = MaterialTheme.typography.labelSmall,
-                color = VestraColors.Accent,
-            )
-            Spacer(Modifier.height(6.dp))
-            ExamplePromptRow(
-                examples = examples,
-                enabled = !busy,
-                onPick = viewModel::setPrompt,
-            )
-        }
-
-        if (preflight != null) {
-            Spacer(Modifier.height(12.dp))
-            GlassErrorBanner(
-                message = preflight!!,
-                onRetry = onOpenSettings ?: { showModelPicker = true },
-                retryLabel = if (onOpenSettings != null) LookbookCopy.ACTION_OPEN_SETTINGS else "Choose model",
-                onDismiss = { viewModel.clearResult() },
-            )
-        }
-
-        Spacer(Modifier.height(12.dp))
-        if (viewModel.resultBelongsTo(effectiveCapability) || viewModel.resultBelongsTo(capability)) {
-            val failedMsg = (state as? GenerativeState.Failed)?.message.orEmpty()
-            val quotaOrCredits = failedMsg.contains("ZeroGPU", ignoreCase = true) ||
-                failedMsg.contains("monthly credits", ignoreCase = true) ||
-                failedMsg.contains("Inference Providers", ignoreCase = true)
-            ResultPane(
-                state = state,
-                liveLog = liveLog,
-                generationStartedAtMs = generationStartedAtMs,
-                onCancel = { viewModel.forceStop() },
-                onRetry = {
-                    viewModel.clearResult()
-                    if (quotaOrCredits) {
-                        showModelPicker = true
-                    } else {
-                        onGenerate()
-                    }
-                },
-                retryLabel = if (quotaOrCredits) "Choose model" else LookbookCopy.ACTION_RETRY,
-                onDismiss = viewModel::clearResult,
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        }
-
-        // Docked composer — outside the scroll region so prompt, model pill, reference
-        // picker and send stay reachable no matter how long the result gets.
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp)
-                .padding(bottom = 10.dp, top = 4.dp),
-        ) {
-            PromptComposer(
-                prompt = prompt,
-                onPromptChange = viewModel::setPrompt,
-                modelLabel = when {
-                    effectiveCapability == AiCapability.IMAGE_GEN && localImageReady && reference == null ->
-                        "Local tiny-SD (offline)"
-                    effectiveCapability == AiCapability.IMAGE_EDIT && localImageEditReady ->
-                        "Local img2img (offline)"
-                    effectiveCapability == AiCapability.CODE && localCodeReady ->
-                        "Local Gemma (offline)"
-                    effectiveCapability == AiCapability.VIDEO && localVideoReady ->
-                        "Local still-clip (offline)"
-                    else -> provider.displayName
-                },
-                assistCount = assistCount,
-                busy = busy,
-                enabled = true,
-                onModelClick = { showModelPicker = true },
-                onAssistsClick = { advancedExpanded = !advancedExpanded },
-                onSend = ::onGenerate,
-                onStop = { viewModel.forceStop() },
-                placeholder = placeholder,
-                referenceUri = if (capability == AiCapability.IMAGE_GEN) reference else null,
-                onAddReference = if (capability == AiCapability.IMAGE_GEN) {
-                    {
-                        pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }
-                } else {
-                    null
-                },
-                onClearReference = if (capability == AiCapability.IMAGE_GEN) {
-                    { viewModel.setReference(null) }
-                } else {
-                    null
-                },
-            )
-        }
     }
 
+    // Model Selector Sheet Dialog
     if (showModelPicker) {
         ModelPickerSheet(
-            title = when (effectiveCapability) {
-                AiCapability.IMAGE_EDIT -> "Image edit models"
-                AiCapability.IMAGE_GEN -> "Image models"
-                AiCapability.VIDEO -> "Video models"
-                AiCapability.CODE -> "Coding models"
-                else -> "Models"
-            } + if (cloudModelsEnabled) "" else " · on-device",
+            title = if (cloudModelsEnabled) "${subtitle(capability)} models" else "${subtitle(capability)} models · on-device",
             models = pickerModels,
             selectedId = selectedId,
             onDeviceEntries = onDeviceEntries,
             health = viewModel.appSettings.modelHealth,
             onSelect = { chosen ->
                 when (effectiveCapability) {
-                    AiCapability.IMAGE_EDIT -> viewModel.appSettings.setImageEditProvider(chosen.id)
                     AiCapability.IMAGE_GEN -> viewModel.appSettings.setImageGenProvider(chosen.id)
-                    AiCapability.VIDEO -> viewModel.appSettings.setVideoProvider(chosen.id)
+                    AiCapability.IMAGE_EDIT -> viewModel.appSettings.setImageEditProvider(chosen.id)
                     AiCapability.CODE -> viewModel.appSettings.setCodeProvider(chosen.id)
+                    AiCapability.VIDEO -> viewModel.appSettings.setVideoProvider(chosen.id)
+                    AiCapability.AUDIO -> viewModel.appSettings.setAudioProvider(chosen.id)
                     else -> Unit
                 }
             },
             onSelectDevice = { entry ->
-                if (!entry.ready) return@ModelPickerSheet
-                when (effectiveCapability) {
-                    AiCapability.IMAGE_EDIT,
-                    AiCapability.IMAGE_GEN,
-                    AiCapability.VIDEO,
-                    AiCapability.CODE,
-                    -> viewModel.appSettings.setLocalGenerator(effectiveCapability, entry.id)
-                    else -> Unit
-                }
+                if (entry.ready) viewModel.appSettings.setLocalGenerator(effectiveCapability, entry.id)
             },
             onDismiss = { showModelPicker = false },
         )
     }
 }
 
+private fun subtitle(capability: AiCapability): String = when (capability) {
+    AiCapability.IMAGE_GEN -> "Image"
+    AiCapability.VIDEO -> "Video"
+    AiCapability.CODE -> "Code"
+    AiCapability.AUDIO -> "Audio"
+    else -> "Studio"
+}
+
 @Composable
-private fun AdvancedAssistSection(
-    expanded: Boolean,
-    onToggle: () -> Unit,
-    busy: Boolean,
+private fun AdvancedAssistRow(
     capability: AiCapability,
     bypassFilter: Boolean,
     fashionContext: Boolean,
@@ -559,103 +620,22 @@ private fun AdvancedAssistSection(
     onPragmatic: () -> Unit,
     onCreative: () -> Unit,
 ) {
-    GlassCard(onClick = onToggle) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "Advanced",
-                style = MaterialTheme.typography.titleMedium,
-                color = VestraColors.Ink,
-            )
-            Icon(
-                if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                contentDescription = if (expanded) "Collapse advanced options" else "Expand advanced options",
-                tint = VestraColors.Accent,
-            )
+    when (capability) {
+        AiCapability.CODE -> {
+            GlassOptionToggle(text = "Pragmatic", active = pragmatic, onToggle = onPragmatic)
+            GlassOptionToggle(text = "Creative", active = creative, onToggle = onCreative)
         }
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically(),
-            exit = shrinkVertically(),
-        ) {
-            Column(Modifier.padding(top = 12.dp)) {
-                when (capability) {
-                    AiCapability.CODE -> {
-                        GlassOptionToggle(
-                            text = LookbookCopy.ASSIST_PRAGMATIC,
-                            active = pragmatic,
-                            enabled = !busy,
-                            onToggle = onPragmatic,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        GlassOptionToggle(
-                            text = LookbookCopy.ASSIST_CREATIVE,
-                            active = creative,
-                            enabled = !busy,
-                            onToggle = onCreative,
-                        )
-                    }
-                    AiCapability.AUDIO -> {
-                        // Only fashion framing is applied to the spoken script.
-                        GlassOptionToggle(
-                            text = LookbookCopy.ASSIST_FASHION,
-                            active = fashionContext,
-                            enabled = !busy,
-                            onToggle = onFashionContext,
-                        )
-                    }
-                    AiCapability.IMAGE_GEN, AiCapability.IMAGE_EDIT, AiCapability.VIDEO -> {
-                        GlassOptionToggle(
-                            text = LookbookCopy.ASSIST_EDITORIAL,
-                            active = bypassFilter,
-                            enabled = !busy,
-                            onToggle = onBypassFilter,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        GlassOptionToggle(
-                            text = LookbookCopy.ASSIST_FASHION,
-                            active = fashionContext,
-                            enabled = !busy,
-                            onToggle = onFashionContext,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        GlassOptionToggle(
-                            text = LookbookCopy.ASSIST_DETAIL,
-                            active = detailBoost,
-                            enabled = !busy,
-                            onToggle = onDetailBoost,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        GlassOptionToggle(
-                            text = LookbookCopy.ASSIST_QUALITY,
-                            active = qualityGuard,
-                            enabled = !busy,
-                            onToggle = onQualityGuard,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        GlassOptionToggle(
-                            text = "Analyze reference (offline vision)",
-                            active = analyzeReference,
-                            enabled = !busy && localVisionReady,
-                            onToggle = onAnalyzeReference,
-                        )
-                        if (!localVisionReady) {
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                "Install local-gemma-4-e2b-v1 for offline reference analysis.",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = VestraColors.InkMuted,
-                            )
-                        }
-                        // Steps / CFG / Seed are not exposed: cloud Space + HF Inference
-                        // payloads ignore them; showing them lied about what the model receives.
-                    }
-                    else -> Unit
-                }
+        AiCapability.AUDIO -> {
+            GlassOptionToggle(text = "Fashion voice", active = fashionContext, onToggle = onFashionContext)
+        }
+        AiCapability.IMAGE_GEN, AiCapability.IMAGE_EDIT, AiCapability.VIDEO -> {
+            GlassOptionToggle(text = "Detail boost", active = detailBoost, onToggle = onDetailBoost)
+            GlassOptionToggle(text = "Quality guard", active = qualityGuard, onToggle = onQualityGuard)
+            GlassOptionToggle(text = "Editorial style", active = fashionContext, onToggle = onFashionContext)
+            if (localVisionReady) {
+                GlassOptionToggle(text = "Vision tag", active = analyzeReference, onToggle = onAnalyzeReference)
             }
         }
+        else -> Unit
     }
 }

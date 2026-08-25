@@ -1,5 +1,8 @@
 package com.zakir.vestra.shared.engine.local
 
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import com.zakir.vestra.shared.audio.VoiceKnobs
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
@@ -11,7 +14,7 @@ import kotlin.math.roundToInt
 
 /**
  * Offline voice changer — true on-device DSP (pitch, speed, formant, warmth, clarity)
- * on mono 16-bit WAV. No neural pack required.
+ * on mono/stereo 16-bit WAV, MP3, M4A, AAC, and OGG audio. No neural pack required.
  */
 class AndroidLocalVoiceChanger(
     private val outputDir: File,
@@ -26,9 +29,9 @@ class AndroidLocalVoiceChanger(
             return LocalAudioResult.Unavailable("Audio file missing: $inputPath")
         }
         return runCatching {
-            val wav = readPcm16MonoWav(input)
+            val wav = readPcm16Wav(input) ?: decodeWithMediaCodec(input)
                 ?: return LocalAudioResult.Unavailable(
-                    "Voice changer needs mono 16-bit WAV (cloud TTS saves WAV). Re-generate or convert.",
+                    "Could not decode audio file: $inputPath. Please select a valid WAV, MP3, or M4A audio clip.",
                 )
             var samples = wav.samples
             samples = applyPitchAndSpeed(samples, k.pitchSemitones, k.speed, k.formant)
@@ -43,7 +46,7 @@ class AndroidLocalVoiceChanger(
 
     private data class PcmWav(val samples: ShortArray, val sampleRate: Int)
 
-    private fun readPcm16MonoWav(file: File): PcmWav? {
+    private fun readPcm16Wav(file: File): PcmWav? {
         val bytes = file.readBytes()
         if (bytes.size < 44) return null
         if (String(bytes, 0, 4) != "RIFF" || String(bytes, 8, 4) != "WAVE") return null
@@ -66,7 +69,7 @@ class AndroidLocalVoiceChanger(
                     bb.int // byte rate
                     bb.short // block align
                     bits = bb.short.toInt() and 0xffff
-                    if (format != 1 || channels != 1 || bits != 16) return null
+                    if (format != 1 || (channels != 1 && channels != 2) || bits != 16) return null
                 }
                 "data" -> {
                     dataOffset = offset + 8
@@ -77,12 +80,134 @@ class AndroidLocalVoiceChanger(
             if (dataOffset >= 0 && id == "data") break
         }
         if (dataOffset < 0 || dataSize <= 0) return null
-        val sampleCount = dataSize / 2
-        val samples = ShortArray(sampleCount)
-        val bb = ByteBuffer.wrap(bytes, dataOffset, sampleCount * 2).order(ByteOrder.LITTLE_ENDIAN)
-        for (i in 0 until sampleCount) samples[i] = bb.short
+        val totalShorts = dataSize / 2
+        val bb = ByteBuffer.wrap(bytes, dataOffset, totalShorts * 2).order(ByteOrder.LITTLE_ENDIAN)
+
+        val samples = if (channels == 1) {
+            ShortArray(totalShorts) { bb.short }
+        } else {
+            // Stereo -> Mono average
+            val monoCount = totalShorts / 2
+            val mono = ShortArray(monoCount)
+            for (i in 0 until monoCount) {
+                val left = bb.short.toInt()
+                val right = bb.short.toInt()
+                mono[i] = ((left + right) / 2).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+            mono
+        }
         return PcmWav(samples, sampleRate)
     }
+
+    /**
+     * Decodes any supported Android audio format (M4A, MP3, AAC, OGG) to 16-bit PCM mono.
+     */
+    private fun decodeWithMediaCodec(file: File): PcmWav? = runCatching {
+        val extractor = MediaExtractor()
+        extractor.setDataSource(file.absolutePath)
+        var audioTrackIndex = -1
+        var audioFormat: MediaFormat? = null
+        for (i in 0 until extractor.trackCount) {
+            val format = extractor.getTrackFormat(i)
+            val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
+            if (mime.startsWith("audio/")) {
+                audioTrackIndex = i
+                audioFormat = format
+                break
+            }
+        }
+        if (audioTrackIndex < 0 || audioFormat == null) {
+            extractor.release()
+            return@runCatching null
+        }
+        extractor.selectTrack(audioTrackIndex)
+        val mime = audioFormat.getString(MediaFormat.KEY_MIME) ?: return@runCatching null
+        val decoder = MediaCodec.createDecoderByType(mime)
+        decoder.configure(audioFormat, null, null, 0)
+        decoder.start()
+
+        val sampleRate = if (audioFormat.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
+            audioFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+        } else {
+            22050
+        }
+        var channelCount = if (audioFormat.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
+            audioFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+        } else {
+            1
+        }
+
+        val pcmOut = ByteArrayOutputStream()
+        val info = MediaCodec.BufferInfo()
+        var sawInputEOS = false
+        var sawOutputEOS = false
+        val timeoutUs = 5000L
+
+        while (!sawOutputEOS) {
+            if (!sawInputEOS) {
+                val inputIndex = decoder.dequeueInputBuffer(timeoutUs)
+                if (inputIndex >= 0) {
+                    val inputBuffer = decoder.getInputBuffer(inputIndex)
+                    if (inputBuffer != null) {
+                        val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                        if (sampleSize < 0) {
+                            decoder.queueInputBuffer(inputIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            sawInputEOS = true
+                        } else {
+                            decoder.queueInputBuffer(inputIndex, 0, sampleSize, extractor.sampleTime, 0)
+                            extractor.advance()
+                        }
+                    }
+                }
+            }
+
+            val outputIndex = decoder.dequeueOutputBuffer(info, timeoutUs)
+            if (outputIndex >= 0) {
+                val outputBuffer = decoder.getOutputBuffer(outputIndex)
+                if (outputBuffer != null && info.size > 0) {
+                    outputBuffer.position(info.offset)
+                    outputBuffer.limit(info.offset + info.size)
+                    val chunk = ByteArray(info.size)
+                    outputBuffer.get(chunk)
+                    pcmOut.write(chunk)
+                }
+                decoder.releaseOutputBuffer(outputIndex, false)
+                if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                    sawOutputEOS = true
+                }
+            } else if (outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                val newFormat = decoder.outputFormat
+                if (newFormat.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
+                    channelCount = newFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                }
+            }
+        }
+
+        decoder.stop()
+        decoder.release()
+        extractor.release()
+
+        val rawPcm = pcmOut.toByteArray()
+        if (rawPcm.size < 4) return@runCatching null
+        val totalShorts = rawPcm.size / 2
+        val bb = ByteBuffer.wrap(rawPcm).order(ByteOrder.LITTLE_ENDIAN)
+
+        val samples = if (channelCount <= 1) {
+            ShortArray(totalShorts) { bb.short }
+        } else {
+            val monoCount = totalShorts / channelCount
+            val mono = ShortArray(monoCount)
+            for (i in 0 until monoCount) {
+                var sum = 0
+                for (c in 0 until channelCount) {
+                    sum += bb.short.toInt()
+                }
+                mono[i] = (sum / channelCount).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+            mono
+        }
+        PcmWav(samples, sampleRate)
+    }.getOrNull()
 
     private fun writePcm16MonoWav(file: File, samples: ShortArray, sampleRate: Int) {
         val dataSize = samples.size * 2

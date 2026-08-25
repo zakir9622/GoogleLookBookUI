@@ -4,7 +4,14 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,10 +19,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -27,17 +47,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.zakir.vestra.shared.audio.AndroidMicRecorder
 import com.zakir.vestra.audio.AudioClip
 import com.zakir.vestra.audio.AudioClipLibrary
-import com.zakir.vestra.ui.components.AudioClipList
 import com.zakir.vestra.media.MediaExport
+import com.zakir.vestra.shared.audio.AndroidMicRecorder
 import com.zakir.vestra.shared.audio.VoiceCatalog
 import com.zakir.vestra.shared.audio.VoiceKnobs
 import com.zakir.vestra.shared.cloud.AiCapability
@@ -49,19 +70,24 @@ import com.zakir.vestra.shared.local.LocalModelCatalog
 import com.zakir.vestra.shared.packs.ModelPackManager
 import com.zakir.vestra.ui.GenerativeViewModel
 import com.zakir.vestra.ui.components.AtelierFilterChip
+import com.zakir.vestra.ui.components.AudioClipList
 import com.zakir.vestra.ui.components.ExamplePromptRow
+import com.zakir.vestra.ui.components.GlassCard
+import com.zakir.vestra.ui.components.GlassErrorBanner
 import com.zakir.vestra.ui.components.GlassPill
 import com.zakir.vestra.ui.components.GlassSectionLabel
 import com.zakir.vestra.ui.components.ModelPickerSheet
 import com.zakir.vestra.ui.components.OnDevicePickerEntry
 import com.zakir.vestra.ui.components.PromptComposer
+import com.zakir.vestra.ui.components.QuickPromptItem
 import com.zakir.vestra.ui.components.ResultPane
 import com.zakir.vestra.ui.theme.VestraColors
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
- * Audio Studio — TTS with voice personas + local voice-changer knobs + mic record.
- * Cloud TTS by default; local TTS pack scaffolded; DSP knobs always on-device.
+ * Audio Studio Module — TTS with voice personas + local voice-changer DSP knobs + mic record.
  */
 @Composable
 fun AudioStudioPane(
@@ -90,6 +116,7 @@ fun AudioStudioPane(
     val provider = viewModel.appSettings.selectedProvider(AiCapability.AUDIO)
     val busy = state is GenerativeState.Running || state is GenerativeState.Preparing
     var showModelPicker by remember { mutableStateOf(false) }
+    var showKnobsPanel by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val micRecorder = remember {
@@ -152,9 +179,7 @@ fun AudioStudioPane(
         freeCloudDiscovery?.selectable(viewModel.appSettings, AiCapability.AUDIO)
             ?: CloudModelCatalog.forCapability(AiCapability.AUDIO)
     }
-    // Produced-clip list. Rescanned whenever generation state changes so a new recording,
-    // conversion or TTS result appears without the user leaving the tab. The scan reads file
-    // metadata, so it stays off the UI thread.
+
     var clips by remember { mutableStateOf<List<AudioClip>>(emptyList()) }
     LaunchedEffect(state) {
         clips = withContext(Dispatchers.IO) {
@@ -186,147 +211,311 @@ fun AudioStudioPane(
         }
     }
 
+    val modelDisplayLabel = if (localAudioReady) "Device TTS (offline)" else provider.displayName
+    val scrollState = rememberScrollState()
+
     Column(
-        modifier
+        modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp, vertical = 8.dp),
+            .background(VestraColors.Canvas),
     ) {
-        GlassSectionLabel(LookbookCopy.STUDIO_AUDIO.uppercase())
-        Text(
-            "Device TTS works offline (system voices + knobs). Offline transcription isn't available yet " +
-                "— the published Gemma 4 pack doesn't include audio support. Cloud TTS optional.",
-            style = MaterialTheme.typography.bodySmall,
-            color = VestraColors.InkMuted,
-        )
-        if (preflight != null) {
-            Spacer(Modifier.height(6.dp))
-            GlassPill(text = preflight!!, active = true)
-        }
-        if (recordHint != null) {
-            Spacer(Modifier.height(6.dp))
-            GlassPill(text = recordHint!!, active = isRecording || reference != null)
-        }
-
-        Spacer(Modifier.height(12.dp))
-        Text("VOICE PERSONA", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(6.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(VoiceCatalog.personas) { persona ->
-                AtelierFilterChip(
-                    selected = personaId == persona.id,
-                    onClick = { viewModel.setVoicePersona(persona.id) },
-                    label = { Text(persona.displayName) },
-                )
-            }
-        }
-        Text(
-            VoiceCatalog.byId(personaId).description,
-            style = MaterialTheme.typography.labelSmall,
-            color = VestraColors.InkMuted,
-            modifier = Modifier.padding(top = 4.dp),
-        )
-
-        Spacer(Modifier.height(14.dp))
-        Text("LIVE VOICE CHANGE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-        Text(
-            "Record → apply knobs → play. Continuous streaming DSP is not in this build.",
-            style = MaterialTheme.typography.labelSmall,
-            color = VestraColors.InkMuted,
-        )
-        Spacer(Modifier.height(6.dp))
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        // Scrollable Middle Canvas
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp, vertical = 6.dp),
         ) {
-            AtelierFilterChip(
-                selected = isRecording,
-                onClick = { toggleMic() },
-                label = { Text(if (isRecording) "Stop mic" else "Record mic") },
-            )
-            AtelierFilterChip(
-                selected = false,
-                onClick = {
-                    if (!busy && reference != null) viewModel.applyVoiceChange()
-                },
-                label = { Text("Apply voice change") },
-            )
-            AtelierFilterChip(
-                selected = false,
-                onClick = {
-                    if (!busy && reference != null) viewModel.transcribeAudio()
-                },
-                label = { Text("Transcribe (offline)") },
-            )
-            if (reference != null) {
-                AtelierFilterChip(
-                    selected = false,
-                    onClick = {
-                        viewModel.setReference(null)
-                        micRecorder.clear()
-                        recordHint = null
+            // TOP SECTION MODULE: Header & Model Initialization Card
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(VestraColors.SurfaceRaised)
+                    .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(18.dp))
+                    .padding(14.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(VestraColors.Accent),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "AUDIO STUDIO MODULE",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.2.sp,
+                            ),
+                            color = VestraColors.Ink,
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(VestraColors.GlassFill)
+                            .border(1.dp, VestraColors.Accent.copy(alpha = 0.5f), RoundedCornerShape(50))
+                            .clickable { showModelPicker = true }
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Text(
+                            text = modelDisplayLabel,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            ),
+                            color = VestraColors.Accent,
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "Generates studio narration and speech waveforms with local DSP pitch/formant shifting and offline device TTS.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = VestraColors.InkMuted,
+                )
+
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(VestraColors.GlassFill)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                ) {
+                    Icon(
+                        Icons.Outlined.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = VestraColors.Accent,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "$modelDisplayLabel · initialized & ready",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = VestraColors.Ink,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            if (preflight != null) {
+                GlassErrorBanner(
+                    message = preflight!!,
+                    onRetry = onOpenSettings ?: { showModelPicker = true },
+                    retryLabel = "Configure audio",
+                    onDismiss = { viewModel.clearResult() },
+                )
+                Spacer(Modifier.height(10.dp))
+            }
+
+            // MIDDLE SECTION: Voice Personas & Real-Time DSP Knobs Card
+            GlassCard {
+                Text(
+                    "VOICE PERSONAS",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                    ),
+                    color = VestraColors.Accent,
+                )
+                Spacer(Modifier.height(6.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(VoiceCatalog.personas) { persona ->
+                        AtelierFilterChip(
+                            selected = personaId == persona.id,
+                            onClick = { viewModel.setVoicePersona(persona.id) },
+                            label = { Text(persona.displayName) },
+                        )
+                    }
+                }
+                Text(
+                    VoiceCatalog.byId(personaId).description,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = VestraColors.InkMuted,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showKnobsPanel = !showKnobsPanel },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.Tune,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = VestraColors.Accent,
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "DSP VOICE CHANGING KNOBS",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp,
+                            ),
+                            color = VestraColors.Ink,
+                        )
+                    }
+                    Icon(
+                        if (showKnobsPanel) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = VestraColors.InkMuted,
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = showKnobsPanel,
+                    enter = expandVertically(),
+                    exit = shrinkVertically(),
+                ) {
+                    Column(Modifier.padding(top = 8.dp)) {
+                        KnobSlider("Pitch (semitones)", knobs.pitchSemitones, -12f..12f, "%.0f") {
+                            viewModel.setVoiceKnobs(knobs.copy(pitchSemitones = it))
+                        }
+                        KnobSlider("Speed", knobs.speed, 0.5f..2f, "%.2f×") {
+                            viewModel.setVoiceKnobs(knobs.copy(speed = it))
+                        }
+                        KnobSlider("Formant", knobs.formant, 0.5f..1.5f, "%.2f") {
+                            viewModel.setVoiceKnobs(knobs.copy(formant = it))
+                        }
+                        KnobSlider("Warmth", knobs.warmth, 0f..1f, "%.2f") {
+                            viewModel.setVoiceKnobs(knobs.copy(warmth = it))
+                        }
+                        KnobSlider("Clarity", knobs.clarity, 0f..1f, "%.2f") {
+                            viewModel.setVoiceKnobs(knobs.copy(clarity = it))
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            AtelierFilterChip(
+                                selected = false,
+                                onClick = { viewModel.setVoiceKnobs(VoiceKnobs.Default) },
+                                label = { Text("Reset knobs") },
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    AtelierFilterChip(
+                        selected = isRecording,
+                        onClick = { toggleMic() },
+                        label = { Text(if (isRecording) "Stop mic" else "Record mic") },
+                    )
+                    if (reference != null) {
+                        AtelierFilterChip(
+                            selected = false,
+                            onClick = {
+                                if (!busy) viewModel.applyVoiceChange()
+                            },
+                            label = { Text("Apply voice change") },
+                        )
+                        AtelierFilterChip(
+                            selected = false,
+                            onClick = {
+                                viewModel.setReference(null)
+                                micRecorder.clear()
+                                recordHint = null
+                            },
+                            label = { Text("Clear clip") },
+                        )
+                    }
+                }
+                if (recordHint != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        recordHint!!,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = VestraColors.Accent,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Generation Result Deliverable Stream
+            if (viewModel.resultBelongsTo(AiCapability.AUDIO) && state != null) {
+                ResultPane(
+                    state = state,
+                    liveLog = emptyList(), // Live logs rendered in persistent bottom dock
+                    generationStartedAtMs = generationStartedAtMs,
+                    onRetry = {
+                        if (reference != null && prompt.equals("voice-change", true)) {
+                            viewModel.applyVoiceChange()
+                        } else {
+                            viewModel.generateAudio()
+                        }
                     },
-                    label = { Text("Clear clip") },
+                    onDismiss = { viewModel.forceStop(showStopped = false) },
+                    onCancel = { viewModel.forceStop() },
+                    retryLabel = "Speak again",
+                )
+                Spacer(Modifier.height(10.dp))
+            }
+
+            // Produced Clips Audio Library
+            if (clips.isNotEmpty()) {
+                GlassCard {
+                    GlassSectionLabel("GENERATED CLIPS")
+                    Spacer(Modifier.height(6.dp))
+                    AudioClipList(
+                        clips = clips,
+                        onShare = { clip ->
+                            MediaExport.share(context, File(clip.path), "Share audio")
+                        },
+                        onDelete = { clip ->
+                            if (AudioClipLibrary.delete(clip)) clips = clips.filterNot { it.path == clip.path }
+                        },
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+            }
+        }
+
+        val audioQuickPrompts = remember(personaId, reference) {
+            if (reference != null) {
+                listOf(
+                    QuickPromptItem("voice-change", "DSP", "Transform recorded mic sample"),
+                    QuickPromptItem("Runway introduction with rich bass tone", "Narration"),
+                    QuickPromptItem("Atelier couture showcase whisper", "Whisper"),
+                )
+            } else {
+                listOf(
+                    QuickPromptItem("Welcome to the Vestra Autumn Lookbook preview.", "Lookbook"),
+                    QuickPromptItem("Handcrafted emerald silk abaya with gold zardozi stitching.", "Couture"),
+                    QuickPromptItem("Introducing the modest atelier collection for summer.", "Editorial"),
+                    QuickPromptItem("On-device generative fashion atelier powered by local AI.", "AI"),
                 )
             }
         }
-        if (reference != null) {
-            Text(
-                "Clip ready · ${reference!!.substringAfterLast('/')}",
-                style = MaterialTheme.typography.labelSmall,
-                color = VestraColors.Accent,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
 
-        Spacer(Modifier.height(14.dp))
-        Text("VOICE CHANGER", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-        Text(
-            "Local DSP · pitch · speed · formant · warmth · clarity",
-            style = MaterialTheme.typography.labelSmall,
-            color = VestraColors.InkMuted,
-        )
-        KnobSlider("Pitch (semitones)", knobs.pitchSemitones, -12f..12f, "%.0f") {
-            viewModel.setVoiceKnobs(knobs.copy(pitchSemitones = it))
-        }
-        KnobSlider("Speed", knobs.speed, 0.5f..2f, "%.2f×") {
-            viewModel.setVoiceKnobs(knobs.copy(speed = it))
-        }
-        KnobSlider("Formant", knobs.formant, 0.5f..1.5f, "%.2f") {
-            viewModel.setVoiceKnobs(knobs.copy(formant = it))
-        }
-        KnobSlider("Warmth", knobs.warmth, 0f..1f, "%.2f") {
-            viewModel.setVoiceKnobs(knobs.copy(warmth = it))
-        }
-        KnobSlider("Clarity", knobs.clarity, 0f..1f, "%.2f") {
-            viewModel.setVoiceKnobs(knobs.copy(clarity = it))
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            AtelierFilterChip(
-                selected = false,
-                onClick = { viewModel.setVoiceKnobs(VoiceKnobs.Default) },
-                label = { Text("Reset knobs") },
-            )
-        }
-
-        Spacer(Modifier.height(12.dp))
-        ExamplePromptRow(
-            examples = listOf(
-                "Welcome to The Lookbook atelier.",
-                "This abaya drapes in soft black silk.",
-                "Shop the new hijab collection today.",
-            ),
-            enabled = !busy,
-            onPick = viewModel::setPrompt,
-        )
-        Spacer(Modifier.height(8.dp))
+        // BOTTOM PERSISTENT DOCK: Attached Chatbox + Live Telemetry & Countdown Box
         PromptComposer(
             prompt = prompt,
             onPromptChange = viewModel::setPrompt,
-            modelLabel = if (localAudioReady) "Device TTS (offline)" else provider.displayName,
-            onModelClick = { showModelPicker = true },
+            modelLabel = modelDisplayLabel,
             busy = busy,
             enabled = prompt.isNotBlank() || reference != null,
+            onModelClick = { showModelPicker = true },
             onSend = {
                 if (reference != null && (prompt.isBlank() || prompt.equals("voice-change", true))) {
                     viewModel.applyVoiceChange()
@@ -336,43 +525,18 @@ fun AudioStudioPane(
             },
             onStop = viewModel::cancel,
             placeholder = "Script for ${VoiceCatalog.byId(personaId).displayName}…",
-        )
-        Spacer(Modifier.height(8.dp))
-        ResultPane(
-            state = state,
+            referenceUri = reference,
+            onClearReference = {
+                viewModel.setReference(null)
+                micRecorder.clear()
+            },
             liveLog = liveLog,
             generationStartedAtMs = generationStartedAtMs,
-            onRetry = {
-                if (reference != null && prompt.equals("voice-change", true)) {
-                    viewModel.applyVoiceChange()
-                } else {
-                    viewModel.generateAudio()
-                }
-            },
-            onDismiss = { viewModel.forceStop(showStopped = false) },
-            onCancel = { viewModel.forceStop() },
-            retryLabel = "Speak again",
+            deadlineEpochMs = (state as? GenerativeState.Running)?.deadlineEpochMs,
+            showLiveDock = true,
+            quickPrompts = audioQuickPrompts,
+            onSelectQuickPrompt = viewModel::setPrompt,
         )
-
-        Spacer(Modifier.height(18.dp))
-        GlassSectionLabel("CLIPS")
-        Text(
-            "Recordings, voice-changed results and generated speech — play them here to compare " +
-                "an original against its conversion.",
-            style = MaterialTheme.typography.bodySmall,
-            color = VestraColors.InkMuted,
-        )
-        Spacer(Modifier.height(8.dp))
-        AudioClipList(
-            clips = clips,
-            onShare = { clip ->
-                MediaExport.share(context, File(clip.path), "Share audio")
-            },
-            onDelete = { clip ->
-                if (AudioClipLibrary.delete(clip)) clips = clips.filterNot { it.path == clip.path }
-            },
-        )
-        Spacer(Modifier.height(24.dp))
     }
 
     if (showModelPicker) {
@@ -403,7 +567,7 @@ private fun KnobSlider(
     format: String,
     onChange: (Float) -> Unit,
 ) {
-    Column(Modifier.padding(top = 6.dp)) {
+    Column(Modifier.padding(top = 4.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.bodySmall, color = VestraColors.Ink)
             Text(format.format(value), style = MaterialTheme.typography.labelSmall, color = VestraColors.Accent)

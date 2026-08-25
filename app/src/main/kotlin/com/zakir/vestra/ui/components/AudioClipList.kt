@@ -52,6 +52,7 @@ fun AudioClipList(
     modifier: Modifier = Modifier,
     onShare: ((AudioClip) -> Unit)? = null,
     onDelete: ((AudioClip) -> Unit)? = null,
+    onSelectForVoiceChanger: ((AudioClip) -> Unit)? = null,
 ) {
     if (clips.isEmpty()) {
         GlassCard(modifier) {
@@ -155,6 +156,17 @@ fun AudioClipList(
                     // Compact, not GlassSecondaryButton: that fills its width and starved the
                     // text column beside it down to one-character-wide vertical text — the same
                     // failure as the studio header, caught here by the screenshot test.
+                    onSelectForVoiceChanger?.let { select ->
+                        Text(
+                            "Transform",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = VestraColors.Accent,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .clickable { select(clip) }
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        )
+                    }
                     onShare?.let { share ->
                         Text(
                             "Share",
@@ -163,7 +175,7 @@ fun AudioClipList(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
                                 .clickable { share(clip) }
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
                         )
                     }
                     onDelete?.let {
