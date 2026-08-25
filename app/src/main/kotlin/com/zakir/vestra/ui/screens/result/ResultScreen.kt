@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -88,7 +89,18 @@ fun ResultScreen(
     if (showReport && result != null) {
         AlertDialog(
             onDismissRequest = { showReport = false },
-            title = { Text("Report content") },
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Report content", modifier = Modifier.weight(1f))
+                    IconButton(onClick = { showReport = false }) {
+                        Icon(Icons.Outlined.Close, contentDescription = "Close")
+                    }
+                }
+            },
             text = {
                 Column {
                     Text("Reports are stored on this device only (no paid services). Why are you reporting?")

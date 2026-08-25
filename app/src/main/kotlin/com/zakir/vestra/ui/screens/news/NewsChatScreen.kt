@@ -140,7 +140,7 @@ fun NewsChatScreen(
         }
     }
 
-    val localChatSelected = LocalModelCatalog.isSelectableStudioId(codeId, AiCapability.CODE)
+    val localChatSelected = !cloudEnabled || LocalModelCatalog.isSelectableStudioId(codeId, AiCapability.CODE)
     val chatModelLabel = if (localChatSelected) {
         (LocalModelCatalog.byId(codeId)?.displayName ?: "Local on-device") + " (offline)"
     } else {

@@ -370,12 +370,12 @@ fun ModelConfigScreen(
                     // Modality 1: Reasoning & Code (Gemma vs Groq)
                     ModalityRoutingRow(
                         title = "Reasoning & Code Studio",
-                        currentModel = if (LocalModelCatalog.isSelectableStudioId(codeId, AiCapability.CODE)) "On-Device Gemma 4" else "Groq Llama 3.3 70B",
+                        currentModel = if (!cloudModelsEnabled || LocalModelCatalog.isSelectableStudioId(codeId, AiCapability.CODE)) "On-Device Gemma 4" else "Groq Llama 3.3 70B",
                         icon = Icons.Outlined.Code,
                         accentColor = Color(0xFF10B981),
-                        isOnDevice = LocalModelCatalog.isSelectableStudioId(codeId, AiCapability.CODE),
+                        isOnDevice = !cloudModelsEnabled || LocalModelCatalog.isSelectableStudioId(codeId, AiCapability.CODE),
                         onToggle = {
-                            if (LocalModelCatalog.isSelectableStudioId(codeId, AiCapability.CODE)) {
+                            if (!cloudModelsEnabled || LocalModelCatalog.isSelectableStudioId(codeId, AiCapability.CODE)) {
                                 appSettings.setCloudModelsEnabled(true)
                                 appSettings.setCodeProvider("groq-llama-3.3-70b-versatile")
                             } else {
@@ -389,12 +389,12 @@ fun ModelConfigScreen(
                     // Modality 2: Lookbook Image Studio (TinySD vs Cloud)
                     ModalityRoutingRow(
                         title = "Lookbook Image Studio",
-                        currentModel = if (LocalModelCatalog.isSelectableStudioId(imageGenId, AiCapability.IMAGE_GEN)) "Local tiny-SD (SD-Turbo)" else "Cloud FLUX.1 / SDXL",
+                        currentModel = if (!cloudModelsEnabled || LocalModelCatalog.isSelectableStudioId(imageGenId, AiCapability.IMAGE_GEN)) "Local tiny-SD (SD-Turbo)" else "Cloud FLUX.1 / SDXL",
                         icon = Icons.Outlined.Image,
                         accentColor = Color(0xFF38BDF8),
-                        isOnDevice = LocalModelCatalog.isSelectableStudioId(imageGenId, AiCapability.IMAGE_GEN),
+                        isOnDevice = !cloudModelsEnabled || LocalModelCatalog.isSelectableStudioId(imageGenId, AiCapability.IMAGE_GEN),
                         onToggle = {
-                            if (LocalModelCatalog.isSelectableStudioId(imageGenId, AiCapability.IMAGE_GEN)) {
+                            if (!cloudModelsEnabled || LocalModelCatalog.isSelectableStudioId(imageGenId, AiCapability.IMAGE_GEN)) {
                                 appSettings.setCloudModelsEnabled(true)
                                 appSettings.setImageGenProvider("hf-black-forest-labs-flux-1-schnell")
                             } else {
@@ -408,12 +408,12 @@ fun ModelConfigScreen(
                     // Modality 3: Motion & Video Studio
                     ModalityRoutingRow(
                         title = "Motion & Video Studio",
-                        currentModel = if (LocalModelCatalog.isSelectableStudioId(videoId, AiCapability.VIDEO)) "Local Still-Clip Engine" else "Cloud CogVideoX / Luma",
+                        currentModel = if (!cloudModelsEnabled || LocalModelCatalog.isSelectableStudioId(videoId, AiCapability.VIDEO)) "Local Still-Clip Engine" else "Cloud CogVideoX / Luma",
                         icon = Icons.Outlined.Videocam,
                         accentColor = Color(0xFFF59E0B),
-                        isOnDevice = LocalModelCatalog.isSelectableStudioId(videoId, AiCapability.VIDEO),
+                        isOnDevice = !cloudModelsEnabled || LocalModelCatalog.isSelectableStudioId(videoId, AiCapability.VIDEO),
                         onToggle = {
-                            if (LocalModelCatalog.isSelectableStudioId(videoId, AiCapability.VIDEO)) {
+                            if (!cloudModelsEnabled || LocalModelCatalog.isSelectableStudioId(videoId, AiCapability.VIDEO)) {
                                 appSettings.setCloudModelsEnabled(true)
                                 appSettings.setVideoProvider("hf-thibaud-cogvideox-5b-space")
                             } else {
@@ -427,12 +427,12 @@ fun ModelConfigScreen(
                     // Modality 4: Audio Lab
                     ModalityRoutingRow(
                         title = "Audio Lab & Narration",
-                        currentModel = if (LocalModelCatalog.isSelectableStudioId(audioId, AiCapability.AUDIO)) "On-Device Native DSP TTS" else "Cloud Neural Voice",
+                        currentModel = if (!cloudModelsEnabled || LocalModelCatalog.isSelectableStudioId(audioId, AiCapability.AUDIO)) "On-Device Native DSP TTS" else "Cloud Neural Voice",
                         icon = Icons.Outlined.GraphicEq,
                         accentColor = Color(0xFFEC4899),
-                        isOnDevice = LocalModelCatalog.isSelectableStudioId(audioId, AiCapability.AUDIO),
+                        isOnDevice = !cloudModelsEnabled || LocalModelCatalog.isSelectableStudioId(audioId, AiCapability.AUDIO),
                         onToggle = {
-                            if (LocalModelCatalog.isSelectableStudioId(audioId, AiCapability.AUDIO)) {
+                            if (!cloudModelsEnabled || LocalModelCatalog.isSelectableStudioId(audioId, AiCapability.AUDIO)) {
                                 appSettings.setCloudModelsEnabled(true)
                                 appSettings.setAudioProvider("hf-hexgrad-kokoro-tts")
                             } else {

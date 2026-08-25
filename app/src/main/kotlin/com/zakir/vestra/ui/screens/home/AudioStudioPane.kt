@@ -206,9 +206,14 @@ fun AudioStudioPane(
         }
     }
 
-    val pickerModels = remember(freeCloudDiscovery) {
-        freeCloudDiscovery?.selectable(viewModel.appSettings, AiCapability.AUDIO)
-            ?: CloudModelCatalog.forCapability(AiCapability.AUDIO)
+    val cloudModelsEnabled by viewModel.appSettings.cloudModelsEnabled.collectAsState()
+    val pickerModels = remember(freeCloudDiscovery, cloudModelsEnabled) {
+        if (!cloudModelsEnabled) {
+            emptyList()
+        } else {
+            freeCloudDiscovery?.selectable(viewModel.appSettings, AiCapability.AUDIO)
+                ?: CloudModelCatalog.forCapability(AiCapability.AUDIO)
+        }
     }
 
     var clips by remember { mutableStateOf<List<AudioClip>>(emptyList()) }
@@ -242,7 +247,7 @@ fun AudioStudioPane(
         }
     }
 
-    val modelDisplayLabel = if (localAudioReady) "Device TTS (offline)" else provider.displayName
+    val modelDisplayLabel = if (!cloudModelsEnabled || localAudioReady) "Device TTS (offline)" else provider.displayName
     val scrollState = rememberScrollState()
 
     Column(
@@ -732,7 +737,7 @@ fun AudioStudioPane(
 
     if (showModelPicker) {
         ModelPickerSheet(
-            title = "Audio models",
+            title = if (cloudModelsEnabled) "Audio models" else "Audio models · on-device",
             models = pickerModels,
             selectedId = audioId.ifBlank { provider.id },
             onSelect = {

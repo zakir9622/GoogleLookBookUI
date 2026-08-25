@@ -12,7 +12,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,7 +61,18 @@ fun ResultPane(
     reportPath?.let { path ->
         AlertDialog(
             onDismissRequest = { reportPath = null },
-            title = { Text("Report content") },
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Text("Report content", modifier = Modifier.weight(1f))
+                    IconButton(onClick = { reportPath = null }) {
+                        Icon(Icons.Outlined.Close, contentDescription = "Close")
+                    }
+                }
+            },
             text = {
                 Column {
                     Text("Reports are stored on this device only (no paid services). Why are you reporting?")

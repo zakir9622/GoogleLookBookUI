@@ -158,7 +158,18 @@ fun GarmentScreen(
     wornPhotoWarning?.let { warnedUri ->
         AlertDialog(
             onDismissRequest = { wornPhotoWarning = null },
-            title = { Text("Looks like a worn photo") },
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Text("Looks like a worn photo", modifier = Modifier.weight(1f))
+                    IconButton(onClick = { wornPhotoWarning = null }) {
+                        Icon(Icons.Outlined.Close, contentDescription = "Close")
+                    }
+                }
+            },
             text = {
                 Text(
                     "This image shows a person wearing clothes. For try-on, use a flat lay, " +

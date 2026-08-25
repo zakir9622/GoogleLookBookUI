@@ -18,7 +18,11 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -279,7 +283,21 @@ private fun LookDetailDialog(
     val history = remember(entry, allEntries) { ancestorChain(entry, allEntries) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(entry.personLabel.ifBlank { "Look" }) },
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Text(
+                    entry.personLabel.ifBlank { "Look" },
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Outlined.Close, contentDescription = "Close")
+                }
+            }
+        },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 MediaThumb(

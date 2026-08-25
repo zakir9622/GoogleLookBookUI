@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -97,7 +98,18 @@ fun PersonSourceScreen(
     if (showConsentDialog) {
         AlertDialog(
             onDismissRequest = { showConsentDialog = false },
-            title = { Text("Using personal photos") },
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Text("Using personal photos", modifier = Modifier.weight(1f))
+                    IconButton(onClick = { showConsentDialog = false }) {
+                        Icon(Icons.Outlined.Close, contentDescription = "Close")
+                    }
+                }
+            },
             text = {
                 Text(
                     "Only use photos of yourself, or of people who have given you " +

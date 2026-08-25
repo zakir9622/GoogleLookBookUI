@@ -212,17 +212,39 @@ fun UnifiedStudioPane(
 
     val moduleDescription = when (capability) {
         AiCapability.IMAGE_GEN ->
-            "Renders high-definition modest couture lookbooks and fashion photography with on-device tiny-SD or ultra-speed cloud diffusion models."
+            if (cloudModelsEnabled) {
+                "Renders high-definition modest couture lookbooks and fashion photography with on-device tiny-SD or ultra-speed cloud diffusion models."
+            } else {
+                "Renders high-definition modest couture lookbooks and fashion photography with on-device tiny-SD diffusion models."
+            }
         AiCapability.VIDEO ->
-            "Generates motion sequences and still-clip runway transitions using AI video pipelines."
+            if (cloudModelsEnabled) {
+                "Generates motion sequences and still-clip runway transitions using AI video pipelines."
+            } else {
+                "Generates motion sequences and still-clip runway transitions using local on-device video pipelines."
+            }
         AiCapability.CODE ->
-            "Synthesizes production Kotlin Compose UI code and architectural refactors with on-device Gemma or cloud reasoning LLMs."
+            if (cloudModelsEnabled) {
+                "Synthesizes production Kotlin Compose UI code and architectural refactors with on-device Gemma or cloud reasoning LLMs."
+            } else {
+                "Synthesizes production Kotlin Compose UI code and architectural refactors with on-device Gemma LLMs."
+            }
         AiCapability.AUDIO ->
             "Generates speech waveforms and applies real-time DSP voice transformations."
         else -> "Interactive generative AI atelier studio."
     }
 
     val modelDisplayLabel = when {
+        !cloudModelsEnabled -> {
+            when {
+                effectiveCapability == AiCapability.IMAGE_GEN && reference == null -> "Local tiny-SD (offline)"
+                effectiveCapability == AiCapability.IMAGE_EDIT || reference != null -> "Local img2img (offline)"
+                effectiveCapability == AiCapability.CODE -> "Local Gemma (offline)"
+                effectiveCapability == AiCapability.VIDEO -> "Local still-clip (offline)"
+                effectiveCapability == AiCapability.AUDIO -> "Device TTS (offline)"
+                else -> "Local Model (offline)"
+            }
+        }
         effectiveCapability == AiCapability.IMAGE_GEN && localImageReady && reference == null ->
             "Local tiny-SD (offline)"
         effectiveCapability == AiCapability.IMAGE_EDIT && localImageEditReady ->
