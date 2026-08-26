@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Stop
@@ -33,6 +34,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,7 +82,26 @@ fun PromptComposer(
     quickPrompts: List<QuickPromptItem> = emptyList(),
     onSelectQuickPrompt: ((String) -> Unit)? = null,
     modelLoading: Boolean = false,
+    attachments: List<AttachmentItem> = emptyList(),
+    onAddAttachment: ((AttachmentItem) -> Unit)? = null,
+    onRemoveAttachment: ((AttachmentItem) -> Unit)? = null,
 ) {
+    var showAttachmentSheet by remember { mutableStateOf(false) }
+    var localAttachments by remember { mutableStateOf<List<AttachmentItem>>(emptyList()) }
+    val effectiveAttachments = if (attachments.isNotEmpty()) attachments else localAttachments
+
+    if (showAttachmentSheet) {
+        AttachmentOptionsSheet(
+            onDismiss = { showAttachmentSheet = false },
+            onAttachmentAdded = { item ->
+                if (onAddAttachment != null) {
+                    onAddAttachment(item)
+                } else {
+                    localAttachments = localAttachments + item
+                }
+            },
+        )
+    }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -92,6 +116,13 @@ fun PromptComposer(
                 enabled = enabled && !busy,
             )
         }
+
+        // On-Device Hardware Thermal & Battery Warning Indicator
+        val deviceHealth = rememberDeviceHealth()
+        ThermalBatteryWarningCard(
+            health = deviceHealth,
+            modifier = Modifier.padding(bottom = 6.dp),
+        )
 
         // Attached Live Telemetry & Countdown Box (Above input controls in the dock)
         if (showLiveDock && (busy || liveLog.isNotEmpty())) {
@@ -121,7 +152,19 @@ fun PromptComposer(
                 .padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
             // Attached media preview or upload slot
-            if (onAddReference != null || referenceUri != null) {
+            if (effectiveAttachments.isNotEmpty()) {
+                AttachmentThumbnailBar(
+                    attachments = effectiveAttachments,
+                    onRemoveAttachment = { item ->
+                        if (onRemoveAttachment != null) {
+                            onRemoveAttachment(item)
+                        } else {
+                            localAttachments = localAttachments - item
+                        }
+                    },
+                )
+                Spacer(Modifier.height(8.dp))
+            } else if (onAddReference != null || referenceUri != null) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -169,12 +212,12 @@ fun PromptComposer(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(VestraColors.GlassFill)
                                 .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(12.dp))
-                                .clickable(enabled = !busy, onClick = onAddReference),
+                                .clickable(enabled = !busy) { showAttachmentSheet = true },
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                Icons.Outlined.AddPhotoAlternate,
-                                contentDescription = "Add reference image",
+                                Icons.Outlined.AttachFile,
+                                contentDescription = "Attach files, gallery, or camera",
                                 tint = VestraColors.Accent,
                                 modifier = Modifier.size(22.dp),
                             )
@@ -267,7 +310,7 @@ fun PromptComposer(
                 }
             }
 
-            // Bottom action row: Model Pill + Assists Counter + Send Orb
+            // Bottom action row: Model Pill + Attach button + Assists Counter + Voice Dictation + Send Orb
             Spacer(Modifier.height(10.dp))
             Row(
                 Modifier.fillMaxWidth(),
@@ -282,6 +325,27 @@ fun PromptComposer(
                         .weight(1f)
                         .testTag(TestTags.MODEL_CHIP),
                 )
+                // Attach button
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (effectiveAttachments.isNotEmpty()) VestraColors.Accent.copy(alpha = 0.2f) else VestraColors.GlassFill)
+                        .border(
+                            1.dp,
+                            if (effectiveAttachments.isNotEmpty()) VestraColors.Accent else VestraColors.GlassBorder,
+                            CircleShape,
+                        )
+                        .clickable(enabled = !busy) { showAttachmentSheet = true },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AttachFile,
+                        contentDescription = "Attach files, gallery, or camera",
+                        tint = if (effectiveAttachments.isNotEmpty()) VestraColors.Accent else VestraColors.InkMuted,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
                 if (onAssistsClick != null || assistCount > 0) {
                     AssistChip(
                         count = assistCount,
@@ -289,6 +353,13 @@ fun PromptComposer(
                         modifier = Modifier.testTag(TestTags.ASSIST_CHIP),
                     )
                 }
+                VoiceDictationButton(
+                    onTranscription = { spoken ->
+                        val updated = if (prompt.isBlank()) spoken else "$prompt $spoken"
+                        onPromptChange(updated)
+                    },
+                    enabled = !busy,
+                )
                 SendOrb(
                     busy = busy,
                     enabled = enabled && (busy || prompt.isNotBlank()),

@@ -92,73 +92,72 @@ fun SpatialBackground(
     )
     val density = LocalDensity.current
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(VestraColors.Canvas),
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = VestraColors.Canvas,
+        contentColor = VestraColors.Ink,
     ) {
         Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .offset(
-                    x = with(density) { (36f + drift).toDp() },
-                    y = (-48).dp,
-                )
-                .size((300 * breathe).dp)
-                .graphicsLayer { alpha = 0.5f }
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            VestraColors.AccentSoft.copy(alpha = 0.32f),
-                            VestraColors.Accent.copy(alpha = 0.06f),
-                            Color.Transparent,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(
+                        x = with(density) { (36f + drift).toDp() },
+                        y = (-48).dp,
+                    )
+                    .size((300 * breathe).dp)
+                    .graphicsLayer { alpha = 0.5f }
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                VestraColors.AccentSoft.copy(alpha = 0.32f),
+                                VestraColors.Accent.copy(alpha = 0.06f),
+                                Color.Transparent,
+                            ),
+                        ),
+                        shape = CircleShape,
+                    ),
+            )
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .offset(
+                        x = (-72).dp,
+                        y = with(density) { (64f - drift * 0.5f).toDp() },
+                    )
+                    .size((340 * (2f - breathe).coerceIn(0.92f, 1.15f)).dp)
+                    .graphicsLayer { alpha = 0.42f }
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                VestraColors.Accent.copy(alpha = 0.2f),
+                                Color.Transparent,
+                            ),
+                        ),
+                        shape = CircleShape,
+                    ),
+            )
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                VestraColors.Canvas.copy(alpha = 0.38f),
+                            ),
                         ),
                     ),
-                    shape = CircleShape,
-                ),
-        )
-        Box(
-            Modifier
-                .align(Alignment.BottomStart)
-                .offset(
-                    x = (-72).dp,
-                    y = with(density) { (64f - drift * 0.5f).toDp() },
-                )
-                .size((340 * (2f - breathe).coerceIn(0.92f, 1.15f)).dp)
-                .graphicsLayer { alpha = 0.42f }
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            VestraColors.Accent.copy(alpha = 0.2f),
-                            Color.Transparent,
-                        ),
-                    ),
-                    shape = CircleShape,
-                ),
-        )
-        Box(
-            Modifier
-                .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            VestraColors.Canvas.copy(alpha = 0.38f),
-                        ),
-                    ),
-                ),
-        )
-        content()
+            )
+            content()
+        }
     }
 }
 
 /**
  * Frosted glass card — semi-transparent fill, highlight border, spatial shadow.
- *
- * A clickable card gets a subtle press-lift (scale down ~3%, spring back on release) —
- * lookbookweb's `press-3d`/`lift-3d` micro-interaction language, ported at Compose-native
- * cost rather than a full 3D perspective tilt. Skipped entirely when the user has reduced
- * motion enabled (`rememberReduceMotion()`), same as every other animation in this app.
  */
 @Composable
 fun GlassCard(
@@ -185,7 +184,6 @@ fun GlassCard(
         .then(
             if (elevation > 0.dp) {
                 Modifier.graphicsLayer {
-                    // Soft elevation; avoid ambient/spot shadow colors that blank on some GPU paths.
                     shadowElevation = elevation.toPx().coerceAtMost(12f)
                 }
             } else {
@@ -210,13 +208,21 @@ fun GlassCard(
             onClick = onClick,
             modifier = base,
             color = Color.Transparent,
+            contentColor = VestraColors.Ink,
             shape = shape,
             interactionSource = interactionSource,
         ) {
             Column(Modifier.padding(18.dp), content = content)
         }
     } else {
-        Column(base.padding(18.dp), content = content)
+        Surface(
+            modifier = base,
+            color = Color.Transparent,
+            contentColor = VestraColors.Ink,
+            shape = shape,
+        ) {
+            Column(Modifier.padding(18.dp), content = content)
+        }
     }
 }
 
@@ -224,13 +230,14 @@ fun GlassCard(
 fun GlassSectionLabel(
     text: String,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary,
+    color: Color = VestraColors.Ink,
 ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelMedium,
+        style = MaterialTheme.typography.titleSmall,
         color = color,
-        modifier = modifier.padding(bottom = 8.dp),
+        fontWeight = FontWeight.SemiBold,
+        modifier = modifier.padding(bottom = 6.dp),
     )
 }
 
@@ -248,10 +255,15 @@ fun GlassTopBar(
     ) {
         navigation()
         Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.headlineMedium, color = VestraColors.Ink)
             if (subtitle != null) {
-                Text(subtitle, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = VestraColors.InkMuted,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
             }
-            Text(title, style = MaterialTheme.typography.headlineMedium)
         }
         Row(content = actions)
     }

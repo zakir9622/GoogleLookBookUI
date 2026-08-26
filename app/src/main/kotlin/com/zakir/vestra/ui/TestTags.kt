@@ -70,6 +70,18 @@ object TestTags {
     const val INTERRUPTED_JOBS_BANNER = "interrupted_jobs_banner"
     fun interruptedJobDismiss(jobId: String): String = "interrupted_job_dismiss_$jobId"
 
+    // Generation State Overlay (GenerationStateOverlay.kt)
+    const val GENERATION_STATE_OVERLAY = "generation_state_overlay"
+
+    // LiteRT-LM Download Tracker & Progress (LiteRtDownloadProgress.kt)
+    const val LITERT_DOWNLOAD_TRACKER = "litert_download_tracker"
+    const val LITERT_ACTIVE_DOWNLOAD_BANNER = "litert_active_download_banner"
+    fun litertDownloadCard(packId: String): String = "litert_download_card_$packId"
+    fun litertDownloadButton(packId: String): String = "litert_download_btn_$packId"
+    fun litertCancelButton(packId: String): String = "litert_cancel_btn_$packId"
+    fun litertVerifyButton(packId: String): String = "litert_verify_btn_$packId"
+    fun litertWarmupButton(packId: String): String = "litert_warmup_btn_$packId"
+
     // Wardrobe look-detail dialog's version-history row (WardrobeScreen.kt).
     fun wardrobeHistoryRow(entryId: String): String = "wardrobe_history_row_$entryId"
 }

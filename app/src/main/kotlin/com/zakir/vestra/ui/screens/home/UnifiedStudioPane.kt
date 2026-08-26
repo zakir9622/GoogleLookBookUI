@@ -205,11 +205,11 @@ fun UnifiedStudioPane(
     }
 
     val moduleTitle = when (capability) {
-        AiCapability.IMAGE_GEN -> "IMAGE GENERATOR"
-        AiCapability.VIDEO -> "VIDEO GENERATOR"
-        AiCapability.CODE -> "CODE GENERATOR"
-        AiCapability.AUDIO -> "AUDIO GENERATOR"
-        else -> "AI GENERATOR"
+        AiCapability.IMAGE_GEN -> "Image Generator"
+        AiCapability.VIDEO -> "Video Generator"
+        AiCapability.CODE -> "Code Generator"
+        AiCapability.AUDIO -> "Audio Generator"
+        else -> "AI Generator"
     }
 
     val moduleDescription = when (capability) {
@@ -392,12 +392,11 @@ fun UnifiedStudioPane(
                             .padding(vertical = 14.dp),
                     ) {
                         Text(
-                            "CURATED PROMPT STARTERS",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp,
+                            "Curated Prompt Starters",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.SemiBold,
                             ),
-                            color = VestraColors.Accent,
+                            color = VestraColors.Ink,
                         )
                         Spacer(Modifier.height(8.dp))
                         ExamplePromptRow(
@@ -499,9 +498,17 @@ fun UnifiedStudioPane(
                                 state = feedItem.state,
                                 liveLog = emptyList(), // Live console rendered in floating composer
                                 generationStartedAtMs = feedItem.generationStartedAtMs,
+                                referenceUri = feedItem.referenceUri,
                                 onCancel = { viewModel.forceStop() },
                                 onRetry = {
                                     viewModel.setPrompt(feedItem.prompt)
+                                    viewModel.setReference(feedItem.referenceUri)
+                                    onGenerate()
+                                },
+                                onQuickTweak = { tweak ->
+                                    val currentPrompt = feedItem.prompt
+                                    val newPrompt = if (currentPrompt.contains(tweak)) currentPrompt else "$currentPrompt, $tweak"
+                                    viewModel.setPrompt(newPrompt)
                                     viewModel.setReference(feedItem.referenceUri)
                                     onGenerate()
                                 },

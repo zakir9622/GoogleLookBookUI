@@ -145,18 +145,30 @@ fun DiagnosticsScreen(
                             DiagnosticsExport.prepareShareBundle(context, diagnostics, usage)
                         }
                         exporting = false
+                        val zipFile = prepared.zipFile
                         val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_SUBJECT, "${LookbookCopy.PRODUCT_NAME} troubleshooting")
+                            if (zipFile != null && zipFile.exists()) {
+                                val uri = androidx.core.content.FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    zipFile,
+                                )
+                                type = "application/zip"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            } else {
+                                type = "text/plain"
+                            }
+                            putExtra(Intent.EXTRA_SUBJECT, "${LookbookCopy.PRODUCT_NAME} Diagnostics & Troubleshooting Package")
                             putExtra(Intent.EXTRA_TEXT, prepared.troubleshootingText)
                         }
-                        context.startActivity(Intent.createChooser(send, "Share troubleshooting bundle"))
+                        context.startActivity(Intent.createChooser(send, "Share diagnostics ZIP bundle"))
                     }
                 },
                 enabled = !exporting,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (exporting) "Preparing…" else "Share troubleshooting bundle")
+                Text(if (exporting) "Packaging ZIP…" else "Share diagnostics package (.ZIP)")
             }
             Spacer(Modifier.height(8.dp))
             OutlinedButton(

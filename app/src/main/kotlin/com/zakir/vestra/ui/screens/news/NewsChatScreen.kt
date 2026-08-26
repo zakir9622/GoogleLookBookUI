@@ -64,6 +64,7 @@ import com.zakir.vestra.shared.settings.AppSettings
 import com.zakir.vestra.ui.ChatViewModel
 import com.zakir.vestra.ui.components.GlassCard
 import com.zakir.vestra.ui.components.GlassErrorBanner
+import com.zakir.vestra.ui.components.LiteRtActiveDownloadBanner
 import com.zakir.vestra.ui.components.ModelPickerSheet
 import com.zakir.vestra.ui.components.OnDevicePickerEntry
 import com.zakir.vestra.ui.components.QuickPromptItem
@@ -281,6 +282,13 @@ fun NewsChatScreen(
                     onHeadlineSelected(item.title)
                 },
             )
+        }
+
+        // Active LiteRT Model Download Progress Banner
+        if (packManager != null) {
+            Box(Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+                LiteRtActiveDownloadBanner(packManager = packManager)
+            }
         }
 
         // News Error Banner

@@ -141,6 +141,7 @@ fun SettingsScreen(
     var openRouterInput by remember(openRouterKey) { mutableStateOf(openRouterKey.orEmpty()) }
     var keysSavedFlash by remember { mutableStateOf(false) }
     var showTokenWizard by remember { mutableStateOf(false) }
+    var showFreeModelsSheet by remember { mutableStateOf(false) }
     var confirmClearTokens by remember { mutableStateOf(false) }
     var clearingCache by remember { mutableStateOf(false) }
     var durableReady by remember { mutableStateOf(DurableStorage.hasAllFilesAccess()) }
@@ -218,6 +219,12 @@ fun SettingsScreen(
             hfConfigured = hfInput.isNotBlank(),
             groqConfigured = groqInput.isNotBlank(),
             openRouterConfigured = openRouterInput.isNotBlank(),
+        )
+    }
+
+    if (showFreeModelsSheet) {
+        FreeModelsSheet(
+            onDismiss = { showFreeModelsSheet = false },
         )
     }
 
@@ -343,17 +350,11 @@ fun SettingsScreen(
                     onOpenRouterInput = { openRouterInput = it },
                     keysSavedFlash = keysSavedFlash,
                     clipboardHint = clipboardHint,
-                    durableReady = durableReady,
                     onApplyClipboard = { applyClipboardToken() },
                     onOpenPortal = ::openPortal,
                     onSaveTokens = ::saveTokens,
                     importTokensLauncher = importTokensLauncher,
-                    onKeysLoadedFromDocuments = { count ->
-                        hfInput = appSettings.hfToken.value.orEmpty()
-                        groqInput = appSettings.groqApiKey.value.orEmpty()
-                        openRouterInput = appSettings.openRouterApiKey.value.orEmpty()
-                        keysSavedFlash = count > 0
-                    },
+                    onOpenFreeModels = { showFreeModelsSheet = true },
                 )
             }
 
@@ -374,75 +375,10 @@ fun SettingsScreen(
             if (showEngines) {
                 settingsEnginesSection(
                     appSettings = appSettings,
-                    engineRouter = engineRouter,
-                    selectedTier = selectedTier,
-                    selectedPackId = selectedPackId,
-                    onSelectPackId = { selectedPackId = it },
+                    packManager = packManager,
                     localPackChoices = localPackChoices,
                     packStates = packStates,
-                    packCatalogError = packCatalogError,
                     startDownload = startDownload,
-                    onOpenPacks = onOpenPacks,
-                    onOpenUsage = onOpenUsage,
-                    handshakeBusy = handshakeBusy,
-                    handshakeDetail = handshakeDetail,
-                    handshakeOk = handshakeOk,
-                    onHandshakeSelected = {
-                        if (handshakeBusy || selectedPackId.isBlank()) return@settingsEnginesSection
-                        scope.launch {
-                            handshakeBusy = true
-                            handshakeDetail = "Handshaking ${selectedPackId}…"
-                            handshakeOk = null
-                            val result = withContext(Dispatchers.Default) {
-                                packManager.handshake(selectedPackId)
-                            }
-                            handshakeBusy = false
-                            handshakeOk = result.ok
-                            handshakeDetail = PackHandshakeWires.formatDetail(result)
-                            Toast.makeText(
-                                context,
-                                PackHandshakeWires.formatUserSummary(result),
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                    },
-                    onHandshakeAll = {
-                        if (handshakeBusy) return@settingsEnginesSection
-                        scope.launch {
-                            handshakeBusy = true
-                            handshakeDetail = "Handshaking all installed packs…"
-                            handshakeOk = null
-                            val report = withContext(Dispatchers.Default) {
-                                packManager.handshakeAll()
-                            }
-                            handshakeBusy = false
-                            handshakeOk = report.allOk && report.results.isNotEmpty()
-                            handshakeDetail = buildString {
-                                append(report.summary)
-                                report.results.take(4).forEach { r ->
-                                    append('\n')
-                                    append(PackHandshakeWires.formatUserSummary(r))
-                                }
-                                if (report.results.size > 4) {
-                                    append("\n… +${report.results.size - 4} more")
-                                }
-                            }
-                            Toast.makeText(context, report.summary, Toast.LENGTH_LONG).show()
-                        }
-                    },
-                )
-            }
-
-            if (showCloud && cloudModelsEnabled) {
-                settingsCloudCapabilitiesSection(
-                    appSettings = appSettings,
-                    freeCloudDiscovery = freeCloudDiscovery,
-                    tryOnId = tryOnId,
-                    imageGenId = imageGenId,
-                    imageEditId = imageEditId,
-                    codeId = codeId,
-                    videoId = videoId,
-                    audioId = audioId,
                 )
             }
 

@@ -3,14 +3,21 @@ package com.zakir.vestra.ui.components
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -28,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -50,14 +58,17 @@ fun ResultPane(
     state: GenerativeState?,
     liveLog: List<String> = emptyList(),
     generationStartedAtMs: Long? = null,
+    referenceUri: String? = null,
     onRetry: (() -> Unit)? = null,
     onDismiss: (() -> Unit)? = null,
     onCancel: (() -> Unit)? = null,
+    onQuickTweak: ((modifier: String) -> Unit)? = null,
     retryLabel: String = LookbookCopy.ACTION_RETRY,
 ) {
     val context = LocalContext.current
     val reportStore = remember { LocalReportStore(context) }
     var reportPath by remember { mutableStateOf<String?>(null) }
+    var showCompareMode by remember { mutableStateOf(false) }
 
     reportPath?.let { path ->
         AlertDialog(
@@ -97,58 +108,109 @@ fun ResultPane(
 
     when (state) {
         null -> Unit
-        is GenerativeState.Preparing -> {
-            GlassLoadingCard(state.message, onCancel = onCancel)
-            LiveGenConsole(liveLog, generationStartedAtMs)
-        }
-        is GenerativeState.Running -> {
-            var tick by remember(state.deadlineEpochMs, state.stage, generationStartedAtMs) {
-                mutableIntStateOf(0)
-            }
-            LaunchedEffect(state.deadlineEpochMs, generationStartedAtMs) {
-                while (true) {
-                    delay(1_000)
-                    tick++
-                }
-            }
-            @Suppress("UNUSED_EXPRESSION")
-            tick // recompose each second
-            val remSec = state.deadlineEpochMs?.let { deadline ->
-                ((deadline - System.currentTimeMillis()) / 1_000L).coerceAtLeast(0L)
-            }
-            val elapsedSec = generationStartedAtMs?.let { start ->
-                ((System.currentTimeMillis() - start) / 1_000L).coerceAtLeast(0L)
-            }
-            val message = buildString {
-                append(state.stage)
-                if (remSec != null) append(" · ${remSec}s left")
-                if (elapsedSec != null) append(" · ${elapsedSec}s elapsed")
-            }
-            GlassLoadingCard(
-                message = message,
-                progress = state.fraction,
+        is GenerativeState.Preparing, is GenerativeState.Running -> {
+            GenerationStateOverlay(
+                state = state,
                 onCancel = onCancel,
+                generationStartedAtMs = generationStartedAtMs,
             )
             LiveGenConsole(liveLog, generationStartedAtMs)
         }
         is GenerativeState.ImageReady -> GlassCard(modifier = Modifier.testTag(TestTags.RESULT_IMAGE_READY)) {
-            GlassSectionLabel("RESULT")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                GlassSectionLabel("RESULT")
+                if (referenceUri != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (showCompareMode) VestraColors.Accent.copy(alpha = 0.25f) else VestraColors.GlassFill)
+                            .border(1.dp, if (showCompareMode) VestraColors.Accent else VestraColors.GlassBorder, RoundedCornerShape(50))
+                            .clickable { showCompareMode = !showCompareMode }
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Text(
+                            text = if (showCompareMode) "Split View: ON" else "Compare Original",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (showCompareMode) VestraColors.Accent else VestraColors.Ink,
+                        )
+                    }
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GlassPill(text = "AI-generated", active = true)
-                GlassPill(text = "In looks gallery", active = true, accent = VestraColors.Accent)
+                GlassPill(text = "On-Device Generated", active = true)
+                GlassPill(text = "Saved in Gallery", active = true, accent = VestraColors.Accent)
             }
             Spacer(Modifier.height(8.dp))
-            ShimmerAsyncImage(
-                model = File(state.path),
-                contentDescription = "Generated look",
-                modifier = Modifier.fillMaxWidth().height(320.dp),
-                contentScale = ContentScale.Fit,
-            )
-            Spacer(Modifier.height(10.dp))
+
+            if (showCompareMode && referenceUri != null) {
+                BeforeAfterCompareSlider(
+                    beforeImage = referenceUri,
+                    afterImage = File(state.path),
+                )
+            } else {
+                ShimmerAsyncImage(
+                    model = File(state.path),
+                    contentDescription = "Generated look",
+                    modifier = Modifier.fillMaxWidth().height(320.dp),
+                    contentScale = ContentScale.Fit,
+                )
+            }
+
+            // Quick-Tap Prompt Tweaking Chips
+            if (onQuickTweak != null) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "QUICK TWEAK & REMIX",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        color = VestraColors.Accent,
+                    ),
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    listOf(
+                        "+ Studio Lighting",
+                        "+ 8K Texture",
+                        "+ Soft Shadows",
+                        "+ Cyberpunk Tint",
+                        "+ Minimalist Clean",
+                        "- Remove Background",
+                    ).forEach { tweak ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(VestraColors.GlassFill)
+                                .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(50))
+                                .clickable { onQuickTweak(tweak) }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                        ) {
+                            Text(
+                                tweak,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = VestraColors.Ink,
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GlassSecondaryButton(
                     text = "Save to Photos",
-                    onClick = { MediaExport.saveImageToGallery(context, File(state.path)) },
+                    onClick = {
+                        MediaExport.saveImageToGallery(context, File(state.path))
+                        Toast.makeText(context, "Saved to Device Photos", Toast.LENGTH_SHORT).show()
+                    },
                     modifier = Modifier.weight(1f),
                 )
                 GlassSecondaryButton(

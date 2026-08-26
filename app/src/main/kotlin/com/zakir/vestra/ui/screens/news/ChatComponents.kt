@@ -40,6 +40,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Clear
@@ -850,8 +851,27 @@ fun ChatPersistentInputBar(
     onSelectQuickPrompt: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
     placeholder: String = "Message Lookbook or tap a headline…",
+    attachments: List<com.zakir.vestra.ui.components.AttachmentItem> = emptyList(),
+    onAddAttachment: ((com.zakir.vestra.ui.components.AttachmentItem) -> Unit)? = null,
+    onRemoveAttachment: ((com.zakir.vestra.ui.components.AttachmentItem) -> Unit)? = null,
 ) {
     var logsExpanded by remember { mutableStateOf(false) }
+    var showAttachmentSheet by remember { mutableStateOf(false) }
+    var localAttachments by remember { mutableStateOf<List<com.zakir.vestra.ui.components.AttachmentItem>>(emptyList()) }
+    val effectiveAttachments = if (attachments.isNotEmpty()) attachments else localAttachments
+
+    if (showAttachmentSheet) {
+        com.zakir.vestra.ui.components.AttachmentOptionsSheet(
+            onDismiss = { showAttachmentSheet = false },
+            onAttachmentAdded = { item ->
+                if (onAddAttachment != null) {
+                    onAddAttachment(item)
+                } else {
+                    localAttachments = localAttachments + item
+                }
+            },
+        )
+    }
 
     Column(
         modifier = modifier
@@ -994,47 +1014,101 @@ fun ChatPersistentInputBar(
                 }
             }
 
-            // Top control row: Model Pill + Prompt length / Clear
+            // Attached matching thumbnails preview
+            if (effectiveAttachments.isNotEmpty()) {
+                com.zakir.vestra.ui.components.AttachmentThumbnailBar(
+                    attachments = effectiveAttachments,
+                    onRemoveAttachment = { item ->
+                        if (onRemoveAttachment != null) {
+                            onRemoveAttachment(item)
+                        } else {
+                            localAttachments = localAttachments - item
+                        }
+                    },
+                )
+                Spacer(Modifier.height(6.dp))
+            }
+
+            // Top control row: Model Pill + Attach button + Prompt length / Clear
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = VestraColors.GlassFill,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .border(1.dp, VestraColors.GlassBorder.copy(alpha = 0.5f), RoundedCornerShape(50))
-                        .clickable(enabled = onModelClick != null) { onModelClick?.invoke() }
-                        .testTag(TestTags.MODEL_CHIP),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = VestraColors.GlassFill,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .border(1.dp, VestraColors.GlassBorder.copy(alpha = 0.5f), RoundedCornerShape(50))
+                            .clickable(enabled = onModelClick != null) { onModelClick?.invoke() }
+                            .testTag(TestTags.MODEL_CHIP),
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(if (busy) VestraColors.Danger else VestraColors.Accent),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = modelLabel,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                            color = VestraColors.Ink,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (onModelClick != null) {
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Outlined.Tune,
-                                contentDescription = "Change model",
-                                modifier = Modifier.size(12.dp),
-                                tint = VestraColors.InkMuted,
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (busy) VestraColors.Danger else VestraColors.Accent),
                             )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = modelLabel,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                color = VestraColors.Ink,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (onModelClick != null) {
+                                Spacer(Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Outlined.Tune,
+                                    contentDescription = "Change model",
+                                    modifier = Modifier.size(12.dp),
+                                    tint = VestraColors.InkMuted,
+                                )
+                            }
+                        }
+                    }
+
+                    // Attach Icon Button (Camera / Gallery / Files)
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = if (effectiveAttachments.isNotEmpty()) VestraColors.Accent.copy(alpha = 0.2f) else VestraColors.GlassFill,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .border(
+                                1.dp,
+                                if (effectiveAttachments.isNotEmpty()) VestraColors.Accent else VestraColors.GlassBorder.copy(alpha = 0.5f),
+                                RoundedCornerShape(50),
+                            )
+                            .clickable(enabled = !busy) { showAttachmentSheet = true },
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.AttachFile,
+                                contentDescription = "Attach files, gallery, or camera",
+                                modifier = Modifier.size(14.dp),
+                                tint = if (effectiveAttachments.isNotEmpty()) VestraColors.Accent else VestraColors.InkMuted,
+                            )
+                            if (effectiveAttachments.isNotEmpty()) {
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = "${effectiveAttachments.size}",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                                    color = VestraColors.Accent,
+                                )
+                            }
                         }
                     }
                 }

@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,20 +51,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.zakir.vestra.shared.cloud.AiCapability
+import com.zakir.vestra.shared.domain.PackStatus
 import com.zakir.vestra.shared.engine.local.LiteRtLmPacks
 import com.zakir.vestra.shared.packs.ModelPackManager
+import com.zakir.vestra.shared.packs.PackDownloadWorker
 import com.zakir.vestra.ui.GenerativeViewModel
 import com.zakir.vestra.ui.theme.VestraColors
 
 /**
  * High-visibility status indicator for on-device LiteRT models (Gemma 4, Qwen3, FunctionGemma).
  * Shows whether the model pack is downloaded, warm/ready in memory for instant low-latency inference,
- * currently warming up, or requiring user attention.
+ * actively downloading (with progress bar), currently warming up, or requiring user attention.
  */
 @Composable
 fun LiteRtStatusIndicator(
@@ -71,6 +76,9 @@ fun LiteRtStatusIndicator(
     isInstalled: Boolean,
     isLoaded: Boolean,
     isLoading: Boolean = false,
+    isDownloading: Boolean = false,
+    downloadProgress: Float = 0f,
+    onCancelDownload: (() -> Unit)? = null,
     errorMessage: String? = null,
     backend: String? = null,
     onWarmUp: (() -> Unit)? = null,
@@ -84,18 +92,18 @@ fun LiteRtStatusIndicator(
     val infiniteTransition = rememberInfiniteTransition(label = "litert_pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = if (isLoading) 1.35f else 1.15f,
+        targetValue = if (isLoading || isDownloading) 1.35f else 1.15f,
         animationSpec = infiniteRepeatable(
-            animation = tween(if (isLoading) 600 else 1400),
+            animation = tween(if (isLoading || isDownloading) 600 else 1400),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "pulse_scale",
     )
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.4f,
-        targetValue = if (isLoading) 0.9f else 0.7f,
+        targetValue = if (isLoading || isDownloading) 0.9f else 0.7f,
         animationSpec = infiniteRepeatable(
-            animation = tween(if (isLoading) 600 else 1400),
+            animation = tween(if (isLoading || isDownloading) 600 else 1400),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "pulse_alpha",
@@ -109,6 +117,7 @@ fun LiteRtStatusIndicator(
     val statusColor by animateColorAsState(
         targetValue = when {
             errorMessage != null -> rose
+            isDownloading -> amber
             isLoading -> amber
             isLoaded -> emerald
             isInstalled -> cyan
@@ -132,7 +141,9 @@ fun LiteRtStatusIndicator(
             .background(containerBackground)
             .border(1.dp, statusColor.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
             .clickable(role = Role.Button) {
-                if (errorMessage != null) {
+                if (isDownloading && onCancelDownload != null) {
+                    onCancelDownload()
+                } else if (errorMessage != null) {
                     onRetry?.invoke()
                 } else if (!isInstalled && onOpenPacks != null) {
                     onOpenPacks()
@@ -159,7 +170,7 @@ fun LiteRtStatusIndicator(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.size(24.dp),
                     ) {
-                        if (isLoading) {
+                        if (isLoading || isDownloading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
@@ -214,6 +225,7 @@ fun LiteRtStatusIndicator(
 
                         val statusSubtitle = when {
                             errorMessage != null -> "Failed to initialize · Tap to retry"
+                            isDownloading -> "Downloading model weights · ${(downloadProgress * 100).toInt()}%"
                             isLoading -> "Initializing LiteRT engine · Cold loading…"
                             isLoaded -> "Ready for instant on-device inference ${backend?.let { "($it)" }.orEmpty()}"
                             isInstalled -> "Installed on disk · Tap to warm up"
@@ -226,6 +238,7 @@ fun LiteRtStatusIndicator(
                             color = when {
                                 errorMessage != null -> rose
                                 isLoaded -> emerald
+                                isDownloading -> amber
                                 else -> VestraColors.IvoryMuted
                             },
                         )
@@ -243,6 +256,7 @@ fun LiteRtStatusIndicator(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val (icon, label) = when {
                             errorMessage != null -> Icons.Outlined.Refresh to "Retry"
+                            isDownloading -> Icons.Outlined.CloudDownload to "${(downloadProgress * 100).toInt()}%"
                             isLoading -> Icons.Outlined.Speed to "Loading"
                             isLoaded -> Icons.Outlined.CheckCircle to "Ready"
                             isInstalled -> Icons.Outlined.Memory to "Warm Up"
@@ -262,6 +276,21 @@ fun LiteRtStatusIndicator(
                         )
                     }
                 }
+            }
+
+            // Inline Download Progress Bar
+            if (isDownloading) {
+                Spacer(Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { downloadProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(CircleShape),
+                    color = amber,
+                    trackColor = amber.copy(alpha = 0.2f),
+                    strokeCap = StrokeCap.Round,
+                )
             }
 
             // Expanded Details Section
@@ -349,14 +378,25 @@ fun LiteRtGemmaStatusIndicator(
         packStates[LiteRtLmPacks.FUNCTION_GEMMA]?.isReady() == true ||
         packStates[LiteRtLmPacks.LEGACY_GEMMA3]?.isReady() == true
 
+    // Detect if any LiteRT model is currently downloading
+    val downloadingPack = packStates[LiteRtLmPacks.GEMMA4_CODE]?.takeIf { it.status == PackStatus.DOWNLOADING }
+        ?: packStates[LiteRtLmPacks.QWEN3_CODE]?.takeIf { it.status == PackStatus.DOWNLOADING }
+        ?: packStates[LiteRtLmPacks.FUNCTION_GEMMA]?.takeIf { it.status == PackStatus.DOWNLOADING }
+        ?: packStates[LiteRtLmPacks.LEGACY_GEMMA3]?.takeIf { it.status == PackStatus.DOWNLOADING }
+
+    val isDownloading = downloadingPack != null
+    val downloadProgress = downloadingPack?.progress ?: 0f
+    val context = LocalContext.current
+
     val isWarmReady = warmup is GenerativeViewModel.Warmup.Ready
     val isLoading = warmup is GenerativeViewModel.Warmup.Loading
     val errorMessage = (warmup as? GenerativeViewModel.Warmup.Failed)?.reason
 
-    val modelLabel = when (warmup) {
-        is GenerativeViewModel.Warmup.Ready -> (warmup as GenerativeViewModel.Warmup.Ready).label
-        is GenerativeViewModel.Warmup.Loading -> (warmup as GenerativeViewModel.Warmup.Loading).label
-        is GenerativeViewModel.Warmup.Failed -> (warmup as GenerativeViewModel.Warmup.Failed).label
+    val modelLabel = when {
+        downloadingPack != null -> "Downloading ${downloadingPack.pack.displayName}"
+        warmup is GenerativeViewModel.Warmup.Ready -> (warmup as GenerativeViewModel.Warmup.Ready).label
+        warmup is GenerativeViewModel.Warmup.Loading -> (warmup as GenerativeViewModel.Warmup.Loading).label
+        warmup is GenerativeViewModel.Warmup.Failed -> (warmup as GenerativeViewModel.Warmup.Failed).label
         else -> "LiteRT Gemma 4 (On-Device)"
     }
 
@@ -365,6 +405,14 @@ fun LiteRtGemmaStatusIndicator(
         isInstalled = gemmaPackReady,
         isLoaded = isWarmReady,
         isLoading = isLoading,
+        isDownloading = isDownloading,
+        downloadProgress = downloadProgress,
+        onCancelDownload = if (downloadingPack != null && packManager != null) {
+            {
+                PackDownloadWorker.cancel(context, downloadingPack.pack.id)
+                packManager.markCancelled(downloadingPack.pack.id)
+            }
+        } else null,
         errorMessage = errorMessage,
         backend = "LiteRT GPU / CPU Fallback",
         onWarmUp = { viewModel.warmUpLocal(AiCapability.CODE) },

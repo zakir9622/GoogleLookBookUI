@@ -1,100 +1,98 @@
 package com.zakir.vestra.ui.screens.settings
 
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.zakir.vestra.shared.content.LookbookCopy
+import androidx.compose.ui.unit.sp
 import com.zakir.vestra.shared.domain.EngineTier
 import com.zakir.vestra.shared.domain.PackState
 import com.zakir.vestra.shared.domain.PackStatus
-import com.zakir.vestra.shared.engine.Availability
-import com.zakir.vestra.shared.engine.EngineRouter
+import com.zakir.vestra.shared.domain.PackVerifyStatus
 import com.zakir.vestra.shared.local.LocalModelCatalog
 import com.zakir.vestra.shared.local.LocalModelEntry
+import com.zakir.vestra.shared.packs.ModelPackManager
 import com.zakir.vestra.shared.settings.AppSettings
 import com.zakir.vestra.ui.components.GlassCard
 import com.zakir.vestra.ui.components.GlassSectionLabel
+import com.zakir.vestra.ui.theme.VestraColors
+import kotlinx.coroutines.launch
 
-/** Local try-on engine · pack download · usage shortcut. */
+/** Revamped minimal On-Device models manager and hardware acceleration settings. */
 internal fun LazyListScope.settingsEnginesSection(
     appSettings: AppSettings,
-    engineRouter: EngineRouter,
-    selectedTier: EngineTier,
-    selectedPackId: String,
-    onSelectPackId: (String) -> Unit,
+    packManager: ModelPackManager,
     localPackChoices: List<LocalModelEntry>,
     packStates: Map<String, PackState>,
-    packCatalogError: String?,
     startDownload: (String) -> Unit,
-    onOpenPacks: () -> Unit,
-    onOpenUsage: () -> Unit,
-    handshakeBusy: Boolean = false,
-    handshakeDetail: String? = null,
-    handshakeOk: Boolean? = null,
-    onHandshakeSelected: () -> Unit = {},
-    onHandshakeAll: () -> Unit = {},
 ) {
-    item(key = "engine") {
+    // 1. Hardware Acceleration Settings
+    item(key = "hardware-engine") {
+        val preferLiteRtGpu by appSettings.preferLiteRtLmGpu.collectAsState()
+        val preferNnapi by appSettings.preferNnapi.collectAsState()
+
         GlassCard {
-            GlassSectionLabel("LOCAL TRY-ON ENGINE")
+            GlassSectionLabel("HARDWARE ACCELERATION")
             Text(
-                "On-device engines. Cloud is never chosen by Auto.",
+                "Optimize on-device neural processing delegates for local LiteRT and ONNX models.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(8.dp))
-            EngineDropdown(
-                selected = selectedTier,
-                availability = { tier ->
-                    if (tier == EngineTier.AUTO) Availability.Ready else engineRouter.availability(tier)
-                },
-                onSelect = appSettings::setEngineTier,
-            )
             Spacer(Modifier.height(12.dp))
-            val preferNnapi by appSettings.preferNnapi.collectAsState()
+
+            // LiteRT GPU switch
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Prefer NNAPI", style = MaterialTheme.typography.titleSmall)
+                    Text("LiteRT-LM GPU Delegate", style = MaterialTheme.typography.titleSmall, color = VestraColors.Ink)
                     Text(
-                        "Off by default — safer on Pixel. Turn on only if try-on is stable.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
-                    checked = preferNnapi,
-                    onCheckedChange = appSettings::setPreferNnapi,
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            val preferLiteRtGpu by appSettings.preferLiteRtLmGpu.collectAsState()
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("LiteRT-LM GPU", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        "Off by default — CPU for Gemma 4 / vision / audio. Enable after Pixel 9 verify.",
+                        "Accelerate Gemma 4 & Qwen3 via Adreno/Mali OpenCL GPU shaders.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -104,125 +102,279 @@ internal fun LazyListScope.settingsEnginesSection(
                     onCheckedChange = appSettings::setPreferLiteRtLmGpu,
                 )
             }
-        }
-        Spacer(Modifier.height(14.dp))
-    }
 
-    item(key = "local-pack") {
-        GlassCard {
-            GlassSectionLabel("LOCAL MODEL PACK")
-            Text(
-                "Select a pack, then download. Transfers resume if interrupted. Durable storage is requested on download so packs survive reinstall.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(8.dp))
-            PackDropdown(
-                choices = localPackChoices.mapNotNull { entry ->
-                    entry.packId?.let { id ->
-                        id to "${entry.displayName} · ${entry.approxSizeLabel}"
-                    }
-                },
-                selectedId = selectedPackId,
-                onSelect = { id ->
-                    onSelectPackId(id)
-                    LocalModelCatalog.entries
-                        .firstOrNull { it.packId == id }
-                        ?.engineTier
-                        ?.let { appSettings.setEngineTier(it) }
-                },
-            )
-            val status = packStates[selectedPackId]?.status
-            val progress = packStates[selectedPackId]?.progress ?: 0f
-            Spacer(Modifier.height(8.dp))
-            Text(
-                when (status) {
-                    PackStatus.INSTALLED -> packStates[selectedPackId]?.verifyLabel()
-                        ?: "Installed — verification pending"
-                    PackStatus.DOWNLOADING -> "Downloading ${(progress * 100).toInt()}%…"
-                    PackStatus.INCOMPATIBLE -> "This device doesn’t meet pack requirements"
-                    PackStatus.UPDATE_AVAILABLE -> "Update available"
-                    PackStatus.NOT_INSTALLED -> if (progress > 0f) "Partial download — can resume" else "Not installed"
-                    null -> when {
-                        packStates.isEmpty() && !packCatalogError.isNullOrBlank() ->
-                            "Catalog unavailable — open All packs to retry"
-                        packStates.isEmpty() -> "Loading pack catalog…"
-                        else -> "Not in catalog yet — open All packs or tap Download"
-                    }
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = { if (selectedPackId.isNotBlank()) startDownload(selectedPackId) },
-                    enabled = status != PackStatus.INCOMPATIBLE && selectedPackId.isNotBlank(),
-                    modifier = Modifier.weight(1f),
-                ) {
+            Spacer(Modifier.height(10.dp))
+
+            // NNAPI Delegate switch
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("NNAPI Hardware Delegate", style = MaterialTheme.typography.titleSmall, color = VestraColors.Ink)
                     Text(
-                        when (status) {
-                            PackStatus.INSTALLED -> "Re-download"
-                            PackStatus.DOWNLOADING -> "Downloading…"
-                            else -> if (progress > 0f) "Resume" else "Download"
-                        },
+                        "Route segmentation and ONNX operations through dedicated NPU cores.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                OutlinedButton(onClick = onOpenPacks, modifier = Modifier.weight(1f)) {
-                    Text("All packs")
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "Device handshake confirms the pack is on disk, integrity-checked, and wired to the matching studio.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = onHandshakeSelected,
-                    enabled = !handshakeBusy &&
-                        selectedPackId.isNotBlank() &&
-                        status == PackStatus.INSTALLED,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(if (handshakeBusy) "Handshaking…" else "Verify link")
-                }
-                OutlinedButton(
-                    onClick = onHandshakeAll,
-                    enabled = !handshakeBusy &&
-                        packStates.values.any { it.status == PackStatus.INSTALLED },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Verify all")
-                }
-            }
-            handshakeDetail?.let { detail ->
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    detail,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = when (handshakeOk) {
-                        true -> MaterialTheme.colorScheme.primary
-                        false -> MaterialTheme.colorScheme.error
-                        null -> MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                Switch(
+                    checked = preferNnapi,
+                    onCheckedChange = appSettings::setPreferNnapi,
                 )
             }
         }
         Spacer(Modifier.height(14.dp))
     }
 
-    item(key = "usage") {
-        GlassCard(onClick = onOpenUsage) {
-            GlassSectionLabel("USAGE")
-            Text(LookbookCopy.STUDIO_USAGE, style = MaterialTheme.typography.titleMedium)
+    // 2. On-Device Models List (with Validate & Delete actions)
+    item(key = "ondevice-models-list-header") {
+        GlassCard {
+            GlassSectionLabel("INSTALLED ON-DEVICE MODELS")
             Text(
-                "Local ledger of free-tier cloud requests, tokens, and failure notes. Local packs are \$0.",
-                style = MaterialTheme.typography.bodyMedium,
+                "Manage local model weights stored on your device. Selected models run fully offline with zero internet required.",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+
+    localPackChoices.forEach { entry ->
+        val packId = entry.packId
+        if (packId != null) {
+            item(key = "model-pack-$packId") {
+                val packState = packStates[packId]
+                OnDeviceModelCard(
+                    entry = entry,
+                    packState = packState,
+                    packManager = packManager,
+                    onStartDownload = { startDownload(packId) },
+                )
+                Spacer(Modifier.height(10.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun OnDeviceModelCard(
+    entry: LocalModelEntry,
+    packState: PackState?,
+    packManager: ModelPackManager,
+    onStartDownload: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var validating by remember { mutableStateOf(false) }
+    var validationResult by remember { mutableStateOf<String?>(null) }
+
+    val status = packState?.status ?: PackStatus.NOT_INSTALLED
+    val isInstalled = status == PackStatus.INSTALLED
+    val isDownloading = status == PackStatus.DOWNLOADING
+    val progress = packState?.progress ?: 0f
+    val verifyStatus = packState?.verifyStatus ?: PackVerifyStatus.UNKNOWN
+
+    val shape = RoundedCornerShape(18.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(VestraColors.SurfaceRaised)
+            .border(
+                1.dp,
+                if (isInstalled) VestraColors.Accent.copy(alpha = 0.45f) else VestraColors.GlassBorder,
+                shape,
+            )
+            .padding(14.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        entry.displayName,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = VestraColors.Ink,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(VestraColors.Accent.copy(alpha = 0.15f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            entry.engineTier?.name ?: "ON-DEVICE",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Medium),
+                            color = VestraColors.Accent,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    entry.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Status & Metadata Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Size: ${entry.approxSizeLabel}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = VestraColors.InkMuted,
+                )
+                Text("·", style = MaterialTheme.typography.labelSmall, color = VestraColors.InkMuted)
+                Text(
+                    entry.license,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = VestraColors.InkMuted,
+                    maxLines = 1,
+                )
+            }
+
+            // Status Badge
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(
+                        when {
+                            isInstalled -> VestraColors.Accent.copy(alpha = 0.15f)
+                            isDownloading -> VestraColors.AccentSoft.copy(alpha = 0.15f)
+                            else -> VestraColors.GlassFill
+                        },
+                    )
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
+            ) {
+                Text(
+                    text = when {
+                        isInstalled -> "Ready & Installed"
+                        isDownloading -> "Downloading ${(progress * 100).toInt()}%"
+                        else -> "Not Installed"
+                    },
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        color = when {
+                            isInstalled -> VestraColors.Accent
+                            isDownloading -> VestraColors.AccentSoft
+                            else -> VestraColors.InkMuted
+                        },
+                    ),
+                )
+            }
+        }
+
+        // Live Download Progress Bar
+        if (isDownloading) {
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(CircleShape),
+                color = VestraColors.Accent,
+                trackColor = VestraColors.Accent.copy(alpha = 0.2f),
+                strokeCap = StrokeCap.Round,
+            )
+        }
+
+        // Validation outcome text
+        validationResult?.let { msg ->
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = VestraColors.Accent, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(msg, style = MaterialTheme.typography.labelSmall, color = VestraColors.Accent)
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        // Action Buttons Row: Validate, Delete, Download
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (isInstalled) {
+                // Validate Button
+                OutlinedButton(
+                    onClick = {
+                        if (validating) return@OutlinedButton
+                        validating = true
+                        scope.launch {
+                            val ok = entry.packId?.let { packManager.handshake(it).ok } ?: false
+                            validating = false
+                            validationResult = if (ok) "Integrity verified (SHA-256 Valid)" else "Validation failed"
+                            Toast.makeText(context, if (ok) "Model pack verified" else "Model verification failed", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    enabled = !validating,
+                    modifier = Modifier.height(34.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                ) {
+                    if (validating) {
+                        CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp, color = VestraColors.Accent)
+                        Spacer(Modifier.width(4.dp))
+                    } else {
+                        Icon(Icons.Outlined.VerifiedUser, contentDescription = null, modifier = Modifier.size(14.dp), tint = VestraColors.Accent)
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Text("Validate", fontSize = 12.sp)
+                }
+
+                Spacer(Modifier.width(8.dp))
+
+                // Delete Button
+                OutlinedButton(
+                    onClick = {
+                        entry.packId?.let { id ->
+                            val deleted = packManager.uninstall(id)
+                            if (deleted) {
+                                validationResult = null
+                                Toast.makeText(context, "Deleted ${entry.displayName} to free storage", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Model is currently in use", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    modifier = Modifier.height(34.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                ) {
+                    Icon(Icons.Outlined.DeleteOutline, contentDescription = null, modifier = Modifier.size(14.dp), tint = VestraColors.Danger)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Delete", fontSize = 12.sp, color = VestraColors.Danger)
+                }
+            } else if (!isDownloading) {
+                // Download Button
+                Button(
+                    onClick = onStartDownload,
+                    modifier = Modifier.height(34.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                ) {
+                    Icon(Icons.Outlined.CloudDownload, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Download Pack", fontSize = 12.sp)
+                }
+            }
         }
     }
 }

@@ -83,17 +83,23 @@ import com.zakir.vestra.shared.cloud.CloudModelCatalog
 import com.zakir.vestra.shared.cloud.CloudModelProvider
 import com.zakir.vestra.shared.cloud.CloudPlatform
 import com.zakir.vestra.shared.cloud.FreeCloudDiscovery
+import com.zakir.vestra.shared.engine.local.LiteRtLmPacks
 import com.zakir.vestra.shared.local.LocalModelCatalog
 import com.zakir.vestra.shared.packs.ModelPackManager
+import com.zakir.vestra.shared.packs.PackDownloadWorker
 import com.zakir.vestra.shared.settings.AppSettings
 import com.zakir.vestra.shared.settings.TokenPortals
 import com.zakir.vestra.storage.TokenSidecar
 import com.zakir.vestra.ui.components.GlassCard
 import com.zakir.vestra.ui.components.GlassSectionLabel
 import com.zakir.vestra.ui.components.GlassTopBar
+import com.zakir.vestra.ui.components.LiteRtActiveDownloadBanner
+import com.zakir.vestra.ui.components.LiteRtModelCatalog
+import com.zakir.vestra.ui.components.LiteRtModelDownloadCard
 import com.zakir.vestra.ui.components.SpatialBackground
 import com.zakir.vestra.ui.theme.RadiusTokens
 import com.zakir.vestra.ui.theme.VestraColors
+import com.zakir.vestra.ui.util.rememberPackDownloadStarter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -137,6 +143,8 @@ fun ModelConfigScreen(
     val cloudModelsEnabled by appSettings.cloudModelsEnabled.collectAsState()
     val preferLiteRtGpu by appSettings.preferLiteRtLmGpu.collectAsState()
     val preferNnapi by appSettings.preferNnapi.collectAsState()
+    val packStates by packManager.states.collectAsState()
+    val startDownload = rememberPackDownloadStarter(showToast = true)
 
     val codeId by appSettings.codeProviderId.collectAsState()
     val imageGenId by appSettings.imageGenProviderId.collectAsState()
@@ -146,8 +154,6 @@ fun ModelConfigScreen(
     val hfToken by appSettings.hfToken.collectAsState()
     val groqKey by appSettings.groqApiKey.collectAsState()
     val openRouterKey by appSettings.openRouterApiKey.collectAsState()
-
-    val packStates by packManager.states.collectAsState()
 
     var groqInput by remember(groqKey) { mutableStateOf(groqKey.orEmpty()) }
     var openRouterInput by remember(openRouterKey) { mutableStateOf(openRouterKey.orEmpty()) }
@@ -262,6 +268,14 @@ fun ModelConfigScreen(
                     },
                 )
                 Spacer(Modifier.height(14.dp))
+            }
+
+            // Active LiteRT Download Banner
+            item(key = "active_litert_download_banner") {
+                LiteRtActiveDownloadBanner(
+                    packManager = packManager,
+                    onOpenPacks = onOpenPacks,
+                )
             }
 
             // Status Overview Banner
@@ -504,6 +518,58 @@ fun ModelConfigScreen(
                                 checkedTrackColor = VestraColors.Accent.copy(alpha = 0.35f),
                             ),
                         )
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+            }
+
+            // LiteRT-LM Model Pack Management Section
+            item(key = "litert_lm_packs_section") {
+                GlassCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        GlassSectionLabel("ON-DEVICE LITERT-LM SUITE")
+                        Text(
+                            text = "100% Private Offline",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF10B981),
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Text(
+                        text = "Track download progress and offline readiness for Google LiteRT runtime models.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = VestraColors.InkMuted,
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    LiteRtModelCatalog.allModels.take(3).forEach { model ->
+                        val packState = packStates[model.packId]
+
+                        LiteRtModelDownloadCard(
+                            meta = model,
+                            packState = packState,
+                            onStartDownload = { startDownload(model.packId) },
+                            onCancelDownload = {
+                                PackDownloadWorker.cancel(context, model.packId)
+                                packManager.markCancelled(model.packId)
+                            },
+                            onVerify = {
+                                scope.launch {
+                                    withContext(Dispatchers.Default) {
+                                        packManager.verifyInstalled(model.packId)
+                                    }
+                                }
+                            },
+                        )
+
+                        Spacer(Modifier.height(10.dp))
                     }
                 }
                 Spacer(Modifier.height(14.dp))
