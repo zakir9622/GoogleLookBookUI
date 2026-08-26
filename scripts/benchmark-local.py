@@ -11,7 +11,7 @@ import numpy as np
 import onnxruntime as ort
 
 ROOT = Path(__file__).resolve().parents[1]
-BUNDLED = ROOT / "composeApp/src/debug/assets/packs/lite-v1"
+BUNDLED = ROOT / "app/src/debug/assets/packs/lite-v1"
 OUT = Path("/tmp/lookbook-benchmark-local.json")
 
 

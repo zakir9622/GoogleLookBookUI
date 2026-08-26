@@ -2,7 +2,7 @@
 # Verify debug Lite pack assets exist and ONNX Runtime can load them (CI gate).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PACK="$ROOT/composeApp/src/debug/assets/packs/lite-v1"
+PACK="$ROOT/app/src/debug/assets/packs/lite-v1"
 required=(garment_seg.onnx human_parse.onnx)
 missing=0
 for f in "${required[@]}"; do

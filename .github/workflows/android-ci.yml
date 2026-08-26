@@ -30,8 +30,8 @@ jobs:
 
       - name: Bootstrap debug lite pack if missing
         run: |
-          if [ ! -f composeApp/src/debug/assets/packs/lite-v1/garment_seg.onnx ]; then
-            python3 ml/export_lite_pack.py --out composeApp/src/debug/assets/packs/lite-v1
+          if [ ! -f app/src/debug/assets/packs/lite-v1/garment_seg.onnx ]; then
+            python3 ml/export_lite_pack.py --out app/src/debug/assets/packs/lite-v1
           fi
 
       - name: Verify lite pack assets

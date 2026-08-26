@@ -26,7 +26,7 @@ import numpy as np
 import onnxruntime as ort
 
 ROOT = Path(__file__).resolve().parents[1]
-BUNDLED_LITE = ROOT / "composeApp/src/debug/assets/packs/lite-v1"
+BUNDLED_LITE = ROOT / "app/src/debug/assets/packs/lite-v1"
 MANIFEST_URL = (
     "https://huggingface.co/datasets/Iamzakirzr/vestra-packs/resolve/main/manifest.json"
 )

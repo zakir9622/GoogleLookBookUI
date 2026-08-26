@@ -28,11 +28,10 @@ Requires JDK 17+, Android SDK (platform 36), and a device/emulator on **Android 
 
 ```bash
 # Sideload release uses the committed stable key (in-place updates across versions):
-./gradlew :composeApp:assembleSideloadRelease
+./gradlew :app:assembleRelease
 
-# Install / update on Pixel 9 (after v3.0.16, no uninstall needed between builds)
-# Latest RC: https://github.com/zakir9622/Agentic-AI/releases/download/v3.1.0-rc1/the-lookbook-v3.1.0-rc1.apk
-adb install -r composeApp/build/outputs/apk/sideload/release/*.apk
+# Install / update on device (after v3.0.16, no uninstall needed between builds)
+adb install -r app/build/outputs/apk/release/*.apk
 ```
 
 > **Note:** APKs before v3.0.16 used a random CI keystore each build. Uninstall once,
@@ -42,7 +41,7 @@ After install: open app → **Model packs** → download Pro pack over Wi-Fi →
 
 ## Project layout
 
-- `composeApp/` — Android UI (Jetpack Compose, Spatial Material 3)
+- `app/` — Android UI (Jetpack Compose, Spatial Material 3)
 - `shared/` — KMP core: engines, pack manager, domain models
 - `ml/` — Python tooling to export/quantize model packs (not shipped in APK)
 - `docs/` — architecture, pipeline, compliance
@@ -62,8 +61,7 @@ python manifest_gen.py exports/ --base-url https://huggingface.co/datasets/Iamza
 ## Tests
 
 ```bash
-./gradlew :shared:testDebugUnitTest
-./gradlew :composeApp:lintDebug
+./gradlew :shared:testDebugUnitTest :app:testDebugUnitTest
 ```
 
 ## License

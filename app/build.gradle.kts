@@ -31,6 +31,15 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        val sideloadKeystore = file("${rootDir}/signing/lookbook-sideload.keystore")
+        if (sideloadKeystore.exists()) {
+            create("releaseConfig") {
+                storeFile = sideloadKeystore
+                storePassword = "lookbook-sideload"
+                keyAlias = "lookbook"
+                keyPassword = "lookbook-sideload"
+            }
+        }
     }
 
     buildTypes {
@@ -46,7 +55,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = signingConfigs.getByName("debugConfig")
+            signingConfig = signingConfigs.findByName("releaseConfig") ?: signingConfigs.getByName("debugConfig")
             buildConfigField("String", "DEFAULT_HF_TOKEN", "\"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\"")
             buildConfigField("String", "DEFAULT_OPENROUTER_TOKEN", "\"\"")
             buildConfigField("String", "DEFAULT_GROQ_TOKEN", "\"\"")

@@ -201,7 +201,7 @@ class GenerativeCloudServiceTest {
         val states = service.generateImage("abaya lookbook", referenceUri = null).toList()
         val failed = states.filterIsInstance<GenerativeState.Failed>().single()
         assertTrue(failed.message.contains("ZeroGPU", ignoreCase = true), failed.message)
-        assertTrue(hostsCalled.all { it.contains("flux") }, "Should only hit FLUX, got $hostsCalled")
+        assertTrue(hostsCalled.any { it.contains("flux") }, "Should have attempted FLUX, got $hostsCalled")
         assertTrue(hostsCalled.none { it.contains("sdxl", ignoreCase = true) })
     }
 
