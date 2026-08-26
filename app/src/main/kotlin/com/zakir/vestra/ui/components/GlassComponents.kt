@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -32,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -52,6 +54,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zakir.vestra.shared.content.LookbookCopy
@@ -528,18 +531,72 @@ fun GlassSecondaryButton(
 }
 
 @Composable
-fun GlassEmptyState(message: String, modifier: Modifier = Modifier, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+fun GlassEmptyState(
+    message: String,
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
     GlassCard(modifier = modifier) {
-        Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 28.dp, horizontal = 16.dp),
+            contentAlignment = Alignment.Center,
+        ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Architectural Atelier Icon Cluster
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(
+                                    VestraColors.Accent.copy(alpha = 0.22f),
+                                    VestraColors.AccentSoft.copy(alpha = 0.06f),
+                                    Color.Transparent,
+                                ),
+                            ),
+                        )
+                        .border(
+                            1.dp,
+                            Brush.verticalGradient(
+                                listOf(
+                                    VestraColors.Accent.copy(alpha = 0.5f),
+                                    VestraColors.GlassBorder.copy(alpha = 0.2f),
+                                ),
+                            ),
+                            CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AutoAwesome,
+                        contentDescription = null,
+                        tint = VestraColors.Accent,
+                        modifier = Modifier.size(30.dp),
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
                 Text(
-                    message,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = message,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Medium,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    ),
+                    color = VestraColors.Ink,
                 )
+
                 if (actionLabel != null && onAction != null) {
-                    Spacer(Modifier.padding(top = 12.dp))
-                    GlassSecondaryButton(text = actionLabel, onClick = onAction)
+                    Spacer(Modifier.height(16.dp))
+                    GlassPrimaryButton(
+                        text = actionLabel,
+                        onClick = onAction,
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                    )
                 }
             }
         }

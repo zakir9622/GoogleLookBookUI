@@ -1,25 +1,34 @@
 package com.zakir.vestra.ui.screens.wardrobe
 
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,14 +41,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.zakir.vestra.media.MediaExport
 import com.zakir.vestra.media.MediaThumb
@@ -52,12 +67,14 @@ import com.zakir.vestra.ui.components.GlassEmptyState
 import com.zakir.vestra.ui.components.GlassScreen
 import com.zakir.vestra.ui.components.GlassSecondaryButton
 import com.zakir.vestra.ui.TestTags
+import com.zakir.vestra.ui.theme.RadiusTokens
+import com.zakir.vestra.ui.theme.VestraColors
 import java.io.File
 
 @Composable
 fun WardrobeScreen(
     wardrobe: WardrobeRepository,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
     onStartTryOn: (() -> Unit)? = null,
 ) {
     val entries by wardrobe.entries.collectAsState()
@@ -164,85 +181,123 @@ fun WardrobeScreen(
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(bottom = 80.dp),
                 ) {
                     items(visible, key = { it.id }) { entry ->
                         val file = File(entry.imagePath)
                         val isVideo = file.extension.lowercase() in setOf("mp4", "webm")
-                        GlassCard {
-                            MediaThumb(
-                                file = file,
-                                contentDescription = if (isVideo) {
-                                    "Video look ${entry.personLabel}. Opens details."
-                                } else {
-                                    "Generated look ${entry.personLabel}. Opens details."
+                        
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(RadiusTokens.lg))
+                                .background(VestraColors.SurfaceRaised)
+                                .border(
+                                    1.dp,
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            VestraColors.Accent.copy(alpha = 0.35f),
+                                            VestraColors.GlassBorder.copy(alpha = 0.2f),
+                                        ),
+                                    ),
+                                    RoundedCornerShape(RadiusTokens.lg),
+                                )
+                                .clickable {
+                                    if (!file.exists()) {
+                                        Toast.makeText(context, "File missing", Toast.LENGTH_SHORT).show()
+                                        return@clickable
+                                    }
+                                    detail = entry
                                 },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(0.75f)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .clickable {
-                                        if (!file.exists()) {
-                                            Toast.makeText(context, "File missing", Toast.LENGTH_SHORT).show()
-                                            return@clickable
-                                        }
-                                        detail = entry
-                                    },
-                                contentScale = ContentScale.Crop,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = "${entry.personLabel} · ${entry.tier.name.lowercase()}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                GlassSecondaryButton(
-                                    text = if (entry.favorited) "★ Fav" else "☆ Fav",
-                                    onClick = { wardrobe.toggleFavorite(entry.id) },
+                        ) {
+                            Column {
+                                Box(
                                     modifier = Modifier
-                                        .weight(1f)
-                                        .semantics {
-                                            contentDescription = if (entry.favorited) {
-                                                "Remove from favorites"
-                                            } else {
-                                                "Add to favorites"
-                                            }
+                                        .fillMaxWidth()
+                                        .aspectRatio(0.78f),
+                                ) {
+                                    MediaThumb(
+                                        file = file,
+                                        contentDescription = if (isVideo) {
+                                            "Video look ${entry.personLabel}. Opens details."
+                                        } else {
+                                            "Generated look ${entry.personLabel}. Opens details."
                                         },
-                                )
-                                GlassSecondaryButton(
-                                    text = LookbookCopy.ACTION_SHARE,
-                                    onClick = {
-                                        if (!file.exists()) {
-                                            Toast.makeText(context, "File missing", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            MediaExport.share(context, file, LookbookCopy.ACTION_SHARE)
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop,
+                                    )
+
+                                    // Top Badges
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(VestraColors.AtelierCanvas.copy(alpha = 0.75f))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                                        ) {
+                                            Text(
+                                                text = if (isVideo) "VIDEO" else entry.tier.name,
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                ),
+                                                color = VestraColors.Accent,
+                                            )
                                         }
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                            Spacer(Modifier.height(6.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                GlassSecondaryButton(
-                                    text = if (isVideo) "Save clip" else "Save to Photos",
-                                    onClick = {
-                                        if (isVideo) {
-                                            MediaExport.saveVideoToGallery(context, file)
-                                        } else {
-                                            MediaExport.saveImageToGallery(context, file)
+
+                                        // Floating Favorite Icon
+                                        Box(
+                                            modifier = Modifier
+                                                .size(30.dp)
+                                                .clip(CircleShape)
+                                                .background(VestraColors.AtelierCanvas.copy(alpha = 0.75f))
+                                                .clickable { wardrobe.toggleFavorite(entry.id) },
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Icon(
+                                                imageVector = if (entry.favorited) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                                                contentDescription = if (entry.favorited) "Remove favorite" else "Add favorite",
+                                                tint = if (entry.favorited) VestraColors.Accent else Color.White,
+                                                modifier = Modifier.size(16.dp),
+                                            )
                                         }
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                )
-                                GlassSecondaryButton(
-                                    text = "Delete",
-                                    onClick = { pendingDelete = entry },
-                                    modifier = Modifier.weight(1f),
-                                )
+                                    }
+                                }
+
+                                // Card Footer Info
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                ) {
+                                    Text(
+                                        text = entry.personLabel.ifBlank { "Lookbook Creation" },
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                        ),
+                                        color = VestraColors.Ink,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = "Tap to view & export",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = VestraColors.InkMuted,
+                                    )
+                                }
                             }
                         }
                     }

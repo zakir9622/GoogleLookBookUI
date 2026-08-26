@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.zakir.vestra.ui.components.ShimmerAsyncImage
 import com.zakir.vestra.data.LocalReportStore
 import com.zakir.vestra.data.ReportReason
 import com.zakir.vestra.media.MediaExport
@@ -167,7 +168,7 @@ fun ResultScreen(
                         if (userPhoto != null && results.size == 1) {
                             BeforeAfter(beforeModel = userPhoto.uri, afterModel = File(result.imagePath))
                         } else {
-                            AsyncImage(
+                            ShimmerAsyncImage(
                                 model = File(result.imagePath),
                                 contentDescription = "Photoshoot shot ${selectedShot + 1}",
                                 modifier = Modifier.fillMaxSize(),
@@ -181,7 +182,7 @@ fun ResultScreen(
                     Spacer(Modifier.height(12.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         itemsIndexed(results) { index, shot ->
-                            AsyncImage(
+                            ShimmerAsyncImage(
                                 model = File(shot.imagePath),
                                 contentDescription = "Shot ${index + 1}",
                                 modifier = Modifier
@@ -199,6 +200,7 @@ fun ResultScreen(
                                     )
                                     .clickable { selectedShot = index },
                                 contentScale = ContentScale.Crop,
+                                shape = RoundedCornerShape(10.dp),
                             )
                         }
                     }
@@ -267,13 +269,13 @@ private fun BeforeAfter(beforeModel: Any, afterModel: Any) {
             },
     ) {
         val widthPx = constraints.maxWidth
-        AsyncImage(
+        ShimmerAsyncImage(
             model = afterModel,
             contentDescription = "Generated try-on result",
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Fit,
         )
-        AsyncImage(
+        ShimmerAsyncImage(
             model = beforeModel,
             contentDescription = "Original photo",
             modifier = Modifier

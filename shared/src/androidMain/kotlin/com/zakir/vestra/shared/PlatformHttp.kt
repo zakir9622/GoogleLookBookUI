@@ -1,5 +1,6 @@
 package com.zakir.vestra.shared
 
+import com.zakir.vestra.shared.logging.installHttpLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -9,6 +10,7 @@ import kotlinx.serialization.json.Json
 
 /** Default HTTP client for this platform; keeps engine artifacts out of the app module. */
 fun platformHttpClient(): HttpClient = HttpClient(OkHttp) {
+    installHttpLogging()
     install(ContentNegotiation) {
         // Required so setBody(JsonObject / maps) and body<JsonObject>() work on Android
         // without kotlin-reflect (LinkedHashMap otherwise fails to serialize).

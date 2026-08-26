@@ -5,7 +5,16 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import com.russhwolf.settings.SharedPreferencesSettings
+import com.zakir.vestra.cache.TryOnDiskCache
 import com.zakir.vestra.data.StudioModelRepository
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.disk.directory
+import coil3.memory.MemoryCache
+import coil3.request.crossfade
+import okio.Path.Companion.toOkioPath
 import com.zakir.vestra.shared.cloud.AndroidCloudIo
 import com.zakir.vestra.shared.cloud.CloudEngine
 import com.zakir.vestra.shared.cloud.FreeCloudDiscovery
@@ -38,11 +47,14 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class VestraApp : Application() {
+class VestraApp : Application(), SingletonImageLoader.Factory {
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     lateinit var appSettings: AppSettings
+        private set
+
+    lateinit var tryOnDiskCache: TryOnDiskCache
         private set
 
     lateinit var engineRouter: EngineRouter
@@ -92,6 +104,25 @@ class VestraApp : Application() {
         appSettings = AppSettings(prefs)
         // CPU-only ORT by default; Engines toggle can opt into NNAPI.
         com.zakir.vestra.shared.engine.lite.OrtEpPolicy.preferNnapi = appSettings.preferNnapi.value
+        com.zakir.vestra.shared.engine.ExclusiveEngineGate.registerEvictionHandler { newModality ->
+            when (newModality) {
+                com.zakir.vestra.shared.engine.EngineModality.IMAGE -> {
+                    com.zakir.vestra.shared.engine.litert.LiteRtLmEngineCache.clearAll()
+                    com.zakir.vestra.shared.engine.lite.OrtSessionCache.clearAll()
+                }
+                com.zakir.vestra.shared.engine.EngineModality.CODE, com.zakir.vestra.shared.engine.EngineModality.CHAT -> {
+                    com.zakir.vestra.shared.engine.lite.OrtSessionCache.clearAll()
+                }
+                com.zakir.vestra.shared.engine.EngineModality.VIDEO, com.zakir.vestra.shared.engine.EngineModality.AUDIO -> {
+                    com.zakir.vestra.shared.engine.litert.LiteRtLmEngineCache.clearAll()
+                    com.zakir.vestra.shared.engine.lite.OrtSessionCache.clearAll()
+                }
+                com.zakir.vestra.shared.engine.EngineModality.TRY_ON -> {
+                    com.zakir.vestra.shared.engine.litert.LiteRtLmEngineCache.clearAll()
+                }
+                com.zakir.vestra.shared.engine.EngineModality.IDLE -> Unit
+            }
+        }
         appScope.launch {
             appSettings.preferNnapi.collect { enabled ->
                 com.zakir.vestra.shared.engine.lite.OrtEpPolicy.preferNnapi = enabled
@@ -112,6 +143,7 @@ class VestraApp : Application() {
         }
         DiagnosticsHook.store = runDiagnostics
         DiagnosticsHook.deviceRamMb = deviceProbe.totalRamMb()
+        tryOnDiskCache = TryOnDiskCache(this)
         localJobStore = com.zakir.vestra.shared.jobs.LocalJobStore(prefs)
         chatRepository = ChatRepository(prefs)
         wardrobe = WardrobeRepository(AndroidTextFileStore(filesDir))
@@ -264,6 +296,23 @@ class VestraApp : Application() {
                 CloudEngine(http, cloudIo, appSettings, usageLedger),
             ),
         )
+    }
+
+    override fun newImageLoader(context: PlatformContext): ImageLoader {
+        return ImageLoader.Builder(context)
+            .memoryCache {
+                MemoryCache.Builder()
+                    .maxSizePercent(context, 0.25)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(context.cacheDir.resolve("vestra_coil_cache").toOkioPath())
+                    .maxSizeBytes(256L * 1024 * 1024)
+                    .build()
+            }
+            .crossfade(true)
+            .build()
     }
 
     companion object {

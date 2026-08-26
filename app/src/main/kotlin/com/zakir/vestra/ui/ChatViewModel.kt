@@ -124,58 +124,63 @@ class ChatViewModel(
 
         job?.cancel()
         job = viewModelScope.launch {
-            try {
-                if (localChat) {
-                    logStateManager.info(LogSource.LITERT, "LiteRT engine initialized for on-device inference.")
-                    val streamed = streamLocalReply(composedPrompt, system, targetModule)
-                    if (streamed != null) {
-                        logStateManager.info(
-                            LogSource.LITERT,
-                            "LiteRT inference complete · ${streamed.tokensIn} in, ${streamed.tokensOut} out",
-                        )
-                        builder?.complete(
-                            success = true,
-                            note = "${streamed.providerId} · tokens ${streamed.tokensIn}+${streamed.tokensOut}",
-                        )
-                        return@launch
+            com.zakir.vestra.shared.engine.ExclusiveEngineGate.withExclusiveModality(
+                modality = com.zakir.vestra.shared.engine.EngineModality.CHAT,
+                modelName = modelDisplayName,
+            ) {
+                try {
+                    if (localChat) {
+                        logStateManager.info(LogSource.LITERT, "LiteRT engine initialized for on-device inference.")
+                        val streamed = streamLocalReply(composedPrompt, system, targetModule)
+                        if (streamed != null) {
+                            logStateManager.info(
+                                LogSource.LITERT,
+                                "LiteRT inference complete · ${streamed.tokensIn} in, ${streamed.tokensOut} out",
+                            )
+                            builder?.complete(
+                                success = true,
+                                note = "${streamed.providerId} · tokens ${streamed.tokensIn}+${streamed.tokensOut}",
+                            )
+                            return@withExclusiveModality
+                        }
+                        logStateManager.warn(LogSource.LITERT, "LiteRT local session unavailable, falling back to cloud endpoint...")
                     }
-                    logStateManager.warn(LogSource.LITERT, "LiteRT local session unavailable, falling back to cloud endpoint...")
+                    logStateManager.info(LogSource.CLOUD_API, "Connecting to ${provider.displayName} (${provider.platform.name})...")
+                    val cloudStartMs = System.currentTimeMillis()
+                    val (result, used) = generative.chatWithFallback(
+                        prompt = composedPrompt,
+                        system = system,
+                        capability = AiCapability.CODE,
+                        temperature = 0.4,
+                    )
+                    val cloudEndMs = System.currentTimeMillis()
+                    val cloudDurationMs = (cloudEndMs - cloudStartMs).coerceAtLeast(1L)
+                    chat.append(
+                        role = "assistant",
+                        text = result.text,
+                        providerId = used.id,
+                        ttftMs = cloudDurationMs,
+                        durationMs = cloudDurationMs,
+                        tokensIn = result.tokensIn,
+                        tokensOut = result.tokensOut,
+                        moduleId = targetModule,
+                    )
+                    logStateManager.info(
+                        LogSource.CLOUD_API,
+                        "Received response from ${used.displayName} in ${cloudDurationMs}ms (${result.tokensIn}+${result.tokensOut} tokens)",
+                    )
+                    builder?.complete(
+                        success = true,
+                        note = "${used.id} · tokens ${result.tokensIn}+${result.tokensOut} · ${cloudDurationMs}ms",
+                    )
+                } catch (e: Exception) {
+                    val rawMsg = e.message?.take(280) ?: "Chat failed"
+                    logStateManager.error(activeSource, "Chat execution error: $rawMsg")
+                    _error.value = if (localChat && builder != null) "$rawMsg (ref ${builder.id})" else rawMsg
+                    builder?.complete(success = false, error = rawMsg)
+                } finally {
+                    _busy.value = false
                 }
-                logStateManager.info(LogSource.CLOUD_API, "Connecting to ${provider.displayName} (${provider.platform.name})...")
-                val cloudStartMs = System.currentTimeMillis()
-                val (result, used) = generative.chatWithFallback(
-                    prompt = composedPrompt,
-                    system = system,
-                    capability = AiCapability.CODE,
-                    temperature = 0.4,
-                )
-                val cloudEndMs = System.currentTimeMillis()
-                val cloudDurationMs = (cloudEndMs - cloudStartMs).coerceAtLeast(1L)
-                chat.append(
-                    role = "assistant",
-                    text = result.text,
-                    providerId = used.id,
-                    ttftMs = cloudDurationMs,
-                    durationMs = cloudDurationMs,
-                    tokensIn = result.tokensIn,
-                    tokensOut = result.tokensOut,
-                    moduleId = targetModule,
-                )
-                logStateManager.info(
-                    LogSource.CLOUD_API,
-                    "Received response from ${used.displayName} in ${cloudDurationMs}ms (${result.tokensIn}+${result.tokensOut} tokens)",
-                )
-                builder?.complete(
-                    success = true,
-                    note = "${used.id} · tokens ${result.tokensIn}+${result.tokensOut} · ${cloudDurationMs}ms",
-                )
-            } catch (e: Exception) {
-                val rawMsg = e.message?.take(280) ?: "Chat failed"
-                logStateManager.error(activeSource, "Chat execution error: $rawMsg")
-                _error.value = if (localChat && builder != null) "$rawMsg (ref ${builder.id})" else rawMsg
-                builder?.complete(success = false, error = rawMsg)
-            } finally {
-                _busy.value = false
             }
         }
     }

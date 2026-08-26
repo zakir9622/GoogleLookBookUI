@@ -1,14 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Stylized hanger + dress silhouette in champagne gold -->
+
+    <!-- Atelier Glow Base -->
     <path
-        android:fillColor="#D8B26E"
-        android:pathData="M54,26 a4,4 0 1,1 0.1,0 M54,30 L54,36 L34,50 L74,50 Z" />
+        android:pathData="M54,34 C64,34 72,42 72,52 C72,64 64,74 54,74 C44,74 36,64 36,52 C36,42 44,34 54,34 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="54"
+                android:startY="34"
+                android:endX="54"
+                android:endY="74"
+                android:type="linear">
+                <item android:color="#24DFC284" android:offset="0.0" />
+                <item android:color="#08E5C37A" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Luxury Hanger Hook & Crown -->
     <path
-        android:fillColor="#D8B26E"
-        android:pathData="M44,52 L64,52 L70,82 Q54,90 38,82 Z" />
+        android:fillColor="#F6E4B8"
+        android:pathData="M54,26 C52.3,26 51,27.3 51,29 C51,30.7 52.3,32 54,32 C55.7,32 57,33.3 57,35 C57,36.5 55.8,37.7 54.3,38 L53.7,38 C53.3,38 53,38.3 53,38.7 L53,40.5 L55,40.5 L55,39.8 C56.9,39.4 59,37.5 59,35 C59,32.2 56.8,30 54,30 C53.4,30 53,29.6 53,29 C53,28.4 53.4,28 54,28 C54.6,28 55,28.4 55,29 L57,29 C57,27.3 55.7,26 54,26 Z" />
+
+    <!-- Sculpted Hanger Bar in Gold Gradient -->
+    <path
+        android:pathData="M54,39 L33,48.5 C31.8,49.0 31.5,50.4 32.5,51.2 L34.5,52.8 C35.2,53.3 36.2,53.2 36.8,52.5 L54,43.8 L71.2,52.5 C71.8,52.8 72.8,52.7 73.5,52.2 L75.5,50.6 C76.5,49.8 76.2,48.4 75,47.9 L54,39 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="32"
+                android:startY="39"
+                android:endX="76"
+                android:endY="53"
+                android:type="linear">
+                <item android:color="#F6E4B8" android:offset="0.0" />
+                <item android:color="#DFC284" android:offset="0.45" />
+                <item android:color="#C59B4E" android:offset="0.8" />
+                <item android:color="#F0D597" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Flowing Haute Couture Dress Silhouette -->
+    <path
+        android:pathData="M46,47 L62,47 C61.2,53 60,60 66,74 C66.8,75.8 65.5,78 63.5,78 L44.5,78 C42.5,78 41.2,75.8 42,74 C48,60 46.8,53 46,47 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="42"
+                android:startY="47"
+                android:endX="66"
+                android:endY="78"
+                android:type="linear">
+                <item android:color="#EAD196" android:offset="0.0" />
+                <item android:color="#C59B4E" android:offset="0.5" />
+                <item android:color="#9A7432" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Silk Sash Accent (Overlaid Ribbon) -->
+    <path
+        android:fillColor="#FFF4D4"
+        android:pathData="M48,54 Q54,58 60,54 L59.5,57.5 Q54,61.5 48.5,57.5 Z" />
+
+    <!-- Center Monogram / Atelier Diamond Cutout -->
+    <path
+        android:fillColor="#0D0E15"
+        android:pathData="M54,62 L57,67 L54,72 L51,67 Z" />
+
+    <!-- Sparkle Stars (AI / Haute Couture Touch) -->
+    <!-- Top Right Star -->
+    <path
+        android:fillColor="#FFF6DF"
+        android:pathData="M73,32 L74.2,35.2 L77.4,36.4 L74.2,37.6 L73,40.8 L71.8,37.6 L68.6,36.4 L71.8,35.2 Z" />
+
+    <!-- Bottom Left Minor Star -->
+    <path
+        android:fillColor="#E5C37A"
+        android:pathData="M34,68 L34.8,70.2 L37,71 L34.8,71.8 L34,74 L33.2,71.8 L31,71 L33.2,70.2 Z" />
+
+    <!-- Top Left Accent Dot -->
+    <path
+        android:fillColor="#F6E4B8"
+        android:pathData="M38,36 A1.5,1.5 0 1,0 38,33 A1.5,1.5 0 1,0 38,36 Z" />
 </vector>

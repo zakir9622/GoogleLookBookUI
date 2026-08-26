@@ -39,13 +39,8 @@ jobs:
           keytool -list -keystore signing/lookbook-sideload.keystore \
             -storepass lookbook-sideload -alias lookbook
 
-      - name: Assemble sideload release APK
-        env:
-          KEYSTORE_PATH: signing/lookbook-sideload.keystore
-          KEYSTORE_PASSWORD: lookbook-sideload
-          KEY_ALIAS: lookbook
-          KEY_PASSWORD: lookbook-sideload
-        run: ./gradlew :composeApp:assembleSideloadRelease --no-daemon
+      - name: Assemble release APK
+        run: ./gradlew :app:assembleRelease --no-daemon
 
       - name: Stage APK
         id: stage
@@ -54,17 +49,16 @@ jobs:
           SHORT_SHA="${GITHUB_SHA::7}"
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF_NAME}"
-            NAME="the-lookbook-${TAG}.apk"
+            NAME="vestra-${TAG}.apk"
             IS_PRERELEASE=false
-            TITLE="The Lookbook ${TAG}"
+            TITLE="Vestra ${TAG}"
           else
-            # main push / merge / workflow_dispatch on main
             TAG="latest"
-            NAME="the-lookbook-sideload-${{ github.run_number }}.apk"
+            NAME="vestra-release-${{ github.run_number }}.apk"
             IS_PRERELEASE=false
-            TITLE="The Lookbook — latest APK (build #${{ github.run_number }})"
+            TITLE="Vestra — latest APK (build #${{ github.run_number }})"
           fi
-          cp composeApp/build/outputs/apk/sideload/release/*.apk "dist/${NAME}"
+          cp app/build/outputs/apk/release/*.apk "dist/${NAME}"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
           echo "prerelease=${IS_PRERELEASE}" >> "$GITHUB_OUTPUT"
@@ -73,7 +67,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: the-lookbook-apk
+          name: vestra-release-apk
           path: dist/*.apk
           retention-days: 30
 

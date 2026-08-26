@@ -80,7 +80,7 @@ fun SettingsScreen(
     onOpenPrivacy: () -> Unit,
     onOpenDiagnostics: (() -> Unit)? = null,
     onOpenModelConfig: (() -> Unit)? = null,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
     section: SettingsSection = SettingsSection.ALL,
     onNavigateSection: ((SettingsSection) -> Unit)? = null,
 ) {
@@ -309,8 +309,10 @@ fun SettingsScreen(
                     title = sectionTitle,
                     subtitle = sectionSubtitle,
                     navigation = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                        if (onBack != null) {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                            }
                         }
                     },
                 )

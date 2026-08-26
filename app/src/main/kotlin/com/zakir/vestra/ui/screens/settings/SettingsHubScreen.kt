@@ -22,7 +22,7 @@ import com.zakir.vestra.ui.components.SpatialBackground
 
 @Composable
 fun SettingsHubScreen(
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
     onOpenCloud: () -> Unit,
     onOpenEngines: () -> Unit,
     onOpenAppearance: () -> Unit,
@@ -44,8 +44,10 @@ fun SettingsHubScreen(
                     title = LookbookCopy.STUDIO_SETTINGS,
                     subtitle = "Engines · cloud · appearance",
                     navigation = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                        if (onBack != null) {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                            }
                         }
                     },
                 )
@@ -54,60 +56,56 @@ fun SettingsHubScreen(
             item {
                 GlassCard(onClick = { onOpenModelConfig?.invoke() ?: onOpenCloud() }) {
                     GlassSectionLabel("MODEL CONFIG & ORCHESTRATOR")
-                    Text("Toggle LiteRT Gemma & Cloud providers (Groq/OpenRouter/HF), ping tests, API keys", style = MaterialTheme.typography.bodyMedium)
+                    Text("Gemma, OpenRouter, Groq & HF routing", style = MaterialTheme.typography.bodyMedium)
                 }
                 Spacer(Modifier.height(12.dp))
             }
             item {
                 GlassCard(onClick = onOpenCloud) {
                     GlassSectionLabel("CLOUD MODELS & KEYS")
-                    Text("HF · Groq · OpenRouter tokens, model picker, token wizard", style = MaterialTheme.typography.bodyMedium)
+                    Text("API keys, token wizard & model selection", style = MaterialTheme.typography.bodyMedium)
                 }
                 Spacer(Modifier.height(12.dp))
             }
             item {
                 GlassCard(onClick = onOpenEngines) {
                     GlassSectionLabel("ENGINES & PACKS")
-                    Text("Lite/Pro/Cloud tier, pack download, local models", style = MaterialTheme.typography.bodyMedium)
+                    Text("On-device model packs & tier selection", style = MaterialTheme.typography.bodyMedium)
                 }
                 Spacer(Modifier.height(12.dp))
             }
             item {
                 GlassCard(onClick = onOpenAppearance) {
-                    GlassSectionLabel("APPEARANCE & PRIVACY")
-                    Text("Theme, permissions, cache, durable storage", style = MaterialTheme.typography.bodyMedium)
+                    GlassSectionLabel("APPEARANCE & STORAGE")
+                    Text("Theme, storage & cache management", style = MaterialTheme.typography.bodyMedium)
                 }
                 Spacer(Modifier.height(12.dp))
             }
             item {
                 GlassCard(onClick = { onOpenDiagnostics?.invoke() }) {
-                    GlassSectionLabel("DIAGNOSTICS")
-                    Text("Crashes · run history · export", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Auto-troubleshooting logs append on every crash — share the bundle without losing history",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    GlassSectionLabel("DIAGNOSTICS & LOGS")
+                    Text("Troubleshooting logs & crash export", style = MaterialTheme.typography.bodyMedium)
                 }
                 Spacer(Modifier.height(12.dp))
             }
             item {
                 GlassCard(onClick = onOpenUsage) {
-                    GlassSectionLabel("USAGE & MODEL HEALTH")
-                    Text("Free-tier ledger and live model readiness", style = MaterialTheme.typography.bodyMedium)
+                    GlassSectionLabel("USAGE & HEALTH")
+                    Text("Quota ledger & model readiness status", style = MaterialTheme.typography.bodyMedium)
                 }
                 Spacer(Modifier.height(12.dp))
             }
             item {
                 GlassCard(onClick = onOpenHelp) {
-                    GlassSectionLabel("HELP")
-                    Text(LookbookCopy.STUDIO_HELP, style = MaterialTheme.typography.titleMedium)
+                    GlassSectionLabel("HELP & GUIDES")
+                    Text(LookbookCopy.STUDIO_HELP, style = MaterialTheme.typography.bodyMedium)
                 }
                 Spacer(Modifier.height(12.dp))
             }
             item {
                 GlassCard(onClick = onOpenPrivacy) {
                     GlassSectionLabel("PRIVACY")
-                    Text(LookbookCopy.ACTION_OPEN_PRIVACY, style = MaterialTheme.typography.titleMedium)
+                    Text(LookbookCopy.ACTION_OPEN_PRIVACY, style = MaterialTheme.typography.bodyMedium)
                 }
                 Spacer(Modifier.height(24.dp))
             }

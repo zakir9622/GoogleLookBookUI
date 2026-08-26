@@ -2,8 +2,11 @@ package com.zakir.vestra.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zakir.vestra.cache.TryOnCacheStats
+import com.zakir.vestra.cache.TryOnDiskCache
 import com.zakir.vestra.shared.domain.Backdrop
 import com.zakir.vestra.shared.domain.CastingProfile
+import com.zakir.vestra.shared.domain.EngineTier
 import com.zakir.vestra.shared.domain.Ethnicity
 import com.zakir.vestra.shared.domain.GarmentCategory
 import com.zakir.vestra.shared.domain.GarmentColor
@@ -40,6 +43,8 @@ class TryOnViewModel(
     private val wardrobe: WardrobeRepository,
     private val runDiagnostics: RunDiagnostics? = null,
     private val deviceRamMb: Long? = null,
+    private val tryOnDiskCache: TryOnDiskCache? = null,
+    private val context: android.content.Context? = null,
 ) : ViewModel() {
 
     private val _outfit = MutableStateFlow<List<GarmentImage>>(emptyList())
@@ -63,7 +68,115 @@ class TryOnViewModel(
     private val _generationStartedAtMs = MutableStateFlow<Long?>(null)
     val generationStartedAtMs: StateFlow<Long?> = _generationStartedAtMs
 
+    // Precision Parameters for All Cloud & Local Engines (with sensible defaults)
+    private val _steps = MutableStateFlow(30)
+    val steps: StateFlow<Int> = _steps
+
+    private val _cfg = MutableStateFlow(2.5)
+    val cfg: StateFlow<Double> = _cfg
+
+    private val _seed = MutableStateFlow<Int?>(null)
+    val seed: StateFlow<Int?> = _seed
+
+    private val _garmentDesc = MutableStateFlow("")
+    val garmentDesc: StateFlow<String> = _garmentDesc
+
+    private val _autoMask = MutableStateFlow(true)
+    val autoMask: StateFlow<Boolean> = _autoMask
+
+    private val _autoCrop = MutableStateFlow(false)
+    val autoCrop: StateFlow<Boolean> = _autoCrop
+
+    private val _customEngineTier = MutableStateFlow<EngineTier?>(null)
+    val customEngineTier: StateFlow<EngineTier?> = _customEngineTier
+
+    // Disk Caching Layer & API Consumption Reducer
+    private val _bypassCache = MutableStateFlow(false)
+    val bypassCache: StateFlow<Boolean> = _bypassCache
+
+    private val _cacheStats = MutableStateFlow<TryOnCacheStats?>(null)
+    val cacheStats: StateFlow<TryOnCacheStats?> = _cacheStats
+
     private var shootJob: Job? = null
+
+    init {
+        refreshCacheStats()
+    }
+
+    fun setBypassCache(bypass: Boolean) {
+        _bypassCache.value = bypass
+    }
+
+    fun refreshCacheStats() {
+        _cacheStats.value = tryOnDiskCache?.getStats()
+    }
+
+    fun clearCache() {
+        viewModelScope.launch {
+            tryOnDiskCache?.clear()
+            refreshCacheStats()
+            appendLive("🧹 Disk cache cleared")
+        }
+    }
+
+    fun setSteps(value: Int) {
+        _steps.value = value.coerceIn(10, 60)
+    }
+
+    fun setCfg(value: Double) {
+        _cfg.value = (value * 10).toInt() / 10.0
+    }
+
+    fun setSeed(value: Int?) {
+        _seed.value = value
+    }
+
+    fun randomizeSeed() {
+        _seed.value = (10000..999999).random()
+    }
+
+    fun setGarmentDesc(value: String) {
+        _garmentDesc.value = value
+    }
+
+    fun setAutoMask(value: Boolean) {
+        _autoMask.value = value
+    }
+
+    fun setAutoCrop(value: Boolean) {
+        _autoCrop.value = value
+    }
+
+    fun setCustomEngineTier(tier: EngineTier?) {
+        _customEngineTier.value = tier
+        if (tier != null) {
+            appSettings.setEngineTier(tier)
+        }
+    }
+
+    fun selectCloudProvider(id: String) {
+        appSettings.setCloudProvider(id)
+        appSettings.setEngineTier(EngineTier.CLOUD)
+        _customEngineTier.value = EngineTier.CLOUD
+    }
+
+    fun setSinglePerson(source: PersonSource) {
+        _shots.value = listOf(source)
+    }
+
+    fun setSingleGarment(uri: String, category: GarmentCategory? = null) {
+        _outfit.value = listOf(GarmentImage(uri = uri, category = category))
+    }
+
+    fun resetParameters() {
+        _steps.value = 30
+        _cfg.value = 2.5
+        _seed.value = null
+        _garmentDesc.value = ""
+        _autoMask.value = true
+        _autoCrop.value = false
+        _backdrop.value = Backdrop.STUDIO_WHITE
+    }
 
     fun addGarment(uri: String) {
         _outfit.value = _outfit.value + GarmentImage(uri = uri)
@@ -147,11 +260,30 @@ class TryOnViewModel(
         appendLive("Start · ${shots.size} look(s) · ${layers.size} layer(s)")
         _shoot.value = ShootState(0, shots.size, GenerationState.Idle, emptyList())
 
+        context?.let {
+            com.zakir.vestra.service.GenerationForegroundService.start(
+                it,
+                "Virtual Try-On in Progress",
+                "Rendering ${shots.size} look(s) · ${layers.size} layer(s)...",
+            )
+        }
+
         shootJob = viewModelScope.launch {
             val completed = mutableListOf<TryOnResult>()
             for ((shotIndex, person) in shots.withIndex()) {
                 val shotResult = renderShot(person, layers, shotIndex, shots.size, completed)
-                    ?: return@launch
+                if (shotResult == null) {
+                    context?.let {
+                        com.zakir.vestra.service.GenerationForegroundService.complete(
+                            it,
+                            "Try-On Could Not Complete",
+                            "Generation encountered an issue. Tap to retry.",
+                            isFailure = true,
+                            deepLinkRoute = "tryon",
+                        )
+                    }
+                    return@launch
+                }
                 completed += shotResult
                 runCatching {
                     wardrobe.add(
@@ -168,6 +300,16 @@ class TryOnViewModel(
                 }
                 _shoot.value = ShootState(shotIndex, shots.size, GenerationState.Complete(shotResult), completed.toList())
             }
+            context?.let {
+                com.zakir.vestra.service.GenerationForegroundService.complete(
+                    it,
+                    "Virtual Try-On Complete ✨",
+                    "Your stylish fitting is ready to view!",
+                    completed.lastOrNull()?.imagePath,
+                    isFailure = false,
+                    deepLinkRoute = "tryon",
+                )
+            }
         }
     }
 
@@ -182,21 +324,59 @@ class TryOnViewModel(
         var lastResult: TryOnResult? = null
         layers.forEachIndexed { layerIndex, piece ->
             val isLastLayer = layerIndex == layers.lastIndex
-            val terminal = engineRouter.generate(
-                TryOnRequest(
-                    garment = piece,
-                    person = currentPerson,
-                    tier = appSettings.engineTier.value,
-                    backdrop = if (isLastLayer) _backdrop.value else Backdrop.ORIGINAL,
-                    casting = _casting.value,
-                ),
-            ).onEachReport(shotIndex, totalShots, layerIndex, layers.size, completed).last()
+            val reqTier = _customEngineTier.value ?: appSettings.engineTier.value
+            val request = TryOnRequest(
+                garment = piece,
+                person = currentPerson,
+                tier = reqTier,
+                backdrop = if (isLastLayer) _backdrop.value else Backdrop.ORIGINAL,
+                casting = _casting.value,
+                seed = _seed.value?.toLong(),
+                customSteps = _steps.value,
+                customCfg = _cfg.value,
+                customGarmentDesc = _garmentDesc.value.ifBlank { null },
+                autoCrop = _autoCrop.value,
+                autoMask = _autoMask.value,
+                clothType = when (piece.category) {
+                    GarmentCategory.LOWER_BODY -> "lower"
+                    GarmentCategory.ABAYA, GarmentCategory.JILBAB, GarmentCategory.KAFTAN,
+                    GarmentCategory.DRESS, GarmentCategory.LEHENGA, GarmentCategory.FULL_COVERAGE,
+                    GarmentCategory.SHALWAR_KAMEEZ -> "overall"
+                    else -> "upper"
+                },
+            )
+
+            val activeProviderId = if (reqTier == EngineTier.CLOUD) appSettings.selectedCloudProvider().id else null
+
+            // Check Disk-Based Cache to avoid redundant API consumption and inference
+            if (!_bypassCache.value && tryOnDiskCache != null) {
+                val cached = tryOnDiskCache.get(request, activeProviderId)
+                if (cached != null) {
+                    appendLive("⚡ Loaded from Disk Cache (0 API calls used)")
+                    lastResult = cached
+                    currentPerson = PersonSource.UserPhoto(cached.imagePath)
+                    refreshCacheStats()
+                    val completeState = GenerationState.Complete(cached)
+                    _shoot.value = ShootState(shotIndex, totalShots, completeState, completed + cached)
+                    return@forEachIndexed
+                }
+            }
+
+            val terminal = engineRouter.generate(request)
+                .onEachReport(shotIndex, totalShots, layerIndex, layers.size, completed)
+                .last()
 
             when (terminal) {
                 is GenerationState.Complete -> {
                     lastResult = terminal.result
                     // Absolute path — LiteEngineIo reads app-private generation files directly.
                     currentPerson = PersonSource.UserPhoto(terminal.result.imagePath)
+
+                    // Persist newly rendered trial into disk cache
+                    if (tryOnDiskCache != null) {
+                        tryOnDiskCache.put(request, activeProviderId, terminal.result)
+                        refreshCacheStats()
+                    }
                 }
                 is GenerationState.Failed -> {
                     _shoot.value = ShootState(shotIndex, totalShots, terminal, completed)
@@ -237,8 +417,29 @@ class TryOnViewModel(
         }
         _shoot.value = ShootState(shotIndex, totalShots, forShoot, completed)
         when (val inner = forShoot) {
-            is GenerationState.Preparing -> appendLive(inner.message)
-            is GenerationState.Running -> appendLive(inner.stage)
+            is GenerationState.Preparing -> {
+                appendLive(inner.message)
+                context?.let { ctx ->
+                    com.zakir.vestra.service.GenerationForegroundService.updateProgress(
+                        ctx,
+                        "Virtual Try-On (Look ${shotIndex + 1}/$totalShots)",
+                        inner.message,
+                        progress = ((shotIndex.toFloat() / totalShots.coerceAtLeast(1)) * 100).toInt(),
+                    )
+                }
+            }
+            is GenerationState.Running -> {
+                appendLive(inner.stage)
+                context?.let { ctx ->
+                    val overallProgress = (((shotIndex + inner.fraction) / totalShots.coerceAtLeast(1)) * 100).toInt()
+                    com.zakir.vestra.service.GenerationForegroundService.updateProgress(
+                        ctx,
+                        "Virtual Try-On (Look ${shotIndex + 1}/$totalShots)",
+                        inner.stage,
+                        progress = overallProgress.coerceIn(0, 100),
+                    )
+                }
+            }
             is GenerationState.Complete -> appendLive("Complete · ${inner.result.executedTier.name}")
             is GenerationState.Failed -> appendLive("Failed · ${inner.error.userMessage()}")
             GenerationState.Idle -> Unit
@@ -252,6 +453,7 @@ class TryOnViewModel(
 
     fun resetSession() {
         shootJob?.cancel()
+        context?.let { com.zakir.vestra.service.GenerationForegroundService.stop(it) }
         _outfit.value = emptyList()
         _shots.value = emptyList()
         _casting.value = CastingProfile()
@@ -263,6 +465,7 @@ class TryOnViewModel(
     fun cancelShoot() {
         shootJob?.cancel()
         shootJob = null
+        context?.let { com.zakir.vestra.service.GenerationForegroundService.stop(it) }
         _shoot.value = null
         _liveLog.value = emptyList()
         _generationStartedAtMs.value = null

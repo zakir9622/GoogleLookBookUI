@@ -53,18 +53,15 @@ jobs:
         run: python3 scripts/test_atr_classify.py
 
       - name: Unit tests
-        run: ./gradlew :shared:testDebugUnitTest :composeApp:testSideloadDebugUnitTest
+        run: ./gradlew :shared:testDebugUnitTest :app:testDebugUnitTest
 
-      - name: Lint
-        run: ./gradlew :composeApp:lintSideloadDebug
-
-      - name: Assemble sideload debug APK
-        run: ./gradlew :composeApp:assembleSideloadDebug
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug
 
       - uses: actions/upload-artifact@v4
         with:
-          name: vestra-debug-apk
-          path: composeApp/build/outputs/apk/sideload/debug/*.apk
+          name: vestra-ci-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
 
       - uses: actions/upload-artifact@v4

@@ -122,6 +122,27 @@ object CloudModelContracts {
             failureHint = "HF Inference credits exhausted or token missing. Add HF token in Settings or wait for monthly reset.",
         ),
         CloudModelContract(
+            providerId = "sd35-large-turbo-inference",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("HF token with Inference Providers", "prompt"),
+            schemaNote = "HF Inference text-to-image · stabilityai/stable-diffusion-3.5-large-turbo",
+            failureHint = "SD 3.5 Large Turbo failed. Check HF token or try FLUX Schnell.",
+        ),
+        CloudModelContract(
+            providerId = "sd35-medium-inference",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("HF token with Inference Providers", "prompt"),
+            schemaNote = "HF Inference text-to-image · stabilityai/stable-diffusion-3.5-medium",
+            failureHint = "SD 3.5 Medium failed. Check HF token or switch model in Settings.",
+        ),
+        CloudModelContract(
+            providerId = "sd-xl-base-inference",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("HF token with Inference Providers", "prompt"),
+            schemaNote = "HF Inference text-to-image · stabilityai/stable-diffusion-xl-base-1.0",
+            failureHint = "SDXL Base failed on HF Inference. Try SDXL Turbo or FLUX Schnell.",
+        ),
+        CloudModelContract(
             providerId = "z-image-turbo-inference",
             support = ModelSupportLevel.READY,
             requiredInputs = listOf("HF token with Inference Providers", "prompt"),
@@ -141,6 +162,27 @@ object CloudModelContracts {
             requiredInputs = listOf("prompt", "seed", "randomize", "width", "height", "steps"),
             schemaNote = "infer · prompt + seed/randomize/size/steps",
             failureHint = "FLUX Schnell Space failed — retry off-peak, add an HF token for FLUX Inference fallback, or switch model.",
+        ),
+        CloudModelContract(
+            providerId = "kolors-image-gen-hf",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("prompt", "image size", "guidance"),
+            schemaNote = "generate_image · Kwai Kolors ZeroGPU Space",
+            failureHint = "Kwai Kolors Space is busy or waking up. Retrying or switching to FLUX Schnell.",
+        ),
+        CloudModelContract(
+            providerId = "playground-v25-hf",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("prompt", "negative prompt", "guidance", "steps"),
+            schemaNote = "infer · Playground v2.5 Space",
+            failureHint = "Playground v2.5 Space queue is busy. Try FLUX Schnell.",
+        ),
+        CloudModelContract(
+            providerId = "aura-flow-hf",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("prompt", "seed", "steps", "guidance"),
+            schemaNote = "infer · AuraFlow Space",
+            failureHint = "AuraFlow Space failed. Try FLUX Schnell or SDXL Turbo.",
         ),
         CloudModelContract(
             providerId = "sdxl-lightning-hf",
@@ -168,6 +210,34 @@ object CloudModelContracts {
             schemaNote = "generate · FileData image + instruction + CFG/seed (image is output 4)",
             failureHint = "InstructPix2Pix failed — wait ~30s and retry, or switch model in the composer.",
         ),
+        CloudModelContract(
+            providerId = "cosxl-edit-hf",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("image", "prompt", "steps", "guidance"),
+            schemaNote = "predict · CosXL instruction image edit Space",
+            failureHint = "CosXL Edit Space is busy. Switching to Qwen Image Edit.",
+        ),
+        CloudModelContract(
+            providerId = "magicbrush-hf",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("image", "instruction", "seed", "steps"),
+            schemaNote = "predict · MagicBrush instruction image edit Space",
+            failureHint = "MagicBrush Space is busy. Switching to Qwen Image Edit.",
+        ),
+        CloudModelContract(
+            providerId = "ledits-plus-plus-hf",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("image", "prompt", "editing concepts"),
+            schemaNote = "predict · LEDITS++ semantic diffusion edit Space",
+            failureHint = "LEDITS++ Space is waking. Retrying or switching to Qwen Image Edit.",
+        ),
+        CloudModelContract(
+            providerId = "bria-rmbg-hf",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("image"),
+            schemaNote = "predict · BRIA RMBG background cutout Space",
+            failureHint = "BRIA RMBG Space is busy. Retrying momentarily.",
+        ),
 
         // ── Code LLMs ───────────────────────────────────────────────────
         CloudModelContract(
@@ -183,6 +253,20 @@ object CloudModelContracts {
             requiredInputs = listOf("Groq API key", "chat messages"),
             schemaNote = "Groq chat · llama-3.3-70b-versatile",
             failureHint = "Groq free-tier limit or bad key. Wait a minute or re-save the Groq key in Settings.",
+        ),
+        CloudModelContract(
+            providerId = "deepseek-r1-groq",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("Groq API key", "chat messages"),
+            schemaNote = "Groq chat · deepseek-r1-distill-llama-70b",
+            failureHint = "Groq rate-limit or key issue with DeepSeek R1. Falling back to Llama 3.3 70B.",
+        ),
+        CloudModelContract(
+            providerId = "llama31-8b-groq",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("Groq API key", "chat messages"),
+            schemaNote = "Groq chat · llama-3.1-8b-instant",
+            failureHint = "Groq instant model rate limit reached. Recheck Groq API key in Settings.",
         ),
         CloudModelContract(
             providerId = "openrouter-free",
@@ -213,6 +297,20 @@ object CloudModelContracts {
             schemaNote = "text_to_video · 14 args (DeepRat ZeroGPU)",
             failureHint = "LTX text_to_video failed — retry off-peak or try Wan2 later.",
         ),
+        CloudModelContract(
+            providerId = "cogvideox-5b-hf",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("prompt", "duration", "fps", "guidance"),
+            schemaNote = "generate · CogVideoX 5B Video Space",
+            failureHint = "CogVideoX Space is waking up. Switching to LTX-Video.",
+        ),
+        CloudModelContract(
+            providerId = "animatediff-hf",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("prompt", "motion style", "steps"),
+            schemaNote = "animate · AnimateDiff Motion Space",
+            failureHint = "AnimateDiff Space queue is busy. Switching to LTX-Video.",
+        ),
 
         // ── Audio / TTS ─────────────────────────────────────────────────
         CloudModelContract(
@@ -230,6 +328,43 @@ object CloudModelContracts {
             requiredInputs = listOf("text", "voice", "rate", "pitch"),
             schemaNote = "innoai Edge-TTS · tts_interface",
             failureHint = "Edge-TTS failed — switch to Kokoro or retry.",
+        ),
+        CloudModelContract(
+            providerId = "parler-tts-hf",
+            support = ModelSupportLevel.READY,
+            apiNameOverride = "gen_tts",
+            requiredInputs = listOf("text", "description / voice prompt"),
+            schemaNote = "parler-tts · gen_tts prompt-guided TTS Space",
+            failureHint = "Parler-TTS Space is busy. Switching to Edge-TTS.",
+        ),
+        CloudModelContract(
+            providerId = "bark-voice-hf",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("text", "speaker preset"),
+            schemaNote = "predict · Suno Bark expressive audio Space",
+            failureHint = "Suno Bark Space is busy or waking. Switching to Edge-TTS.",
+        ),
+        CloudModelContract(
+            providerId = "f5-tts-hf",
+            support = ModelSupportLevel.READY,
+            apiNameOverride = "basic_tts",
+            requiredInputs = listOf("text", "reference voice audio"),
+            schemaNote = "basic_tts · F5-TTS voice synthesis Space",
+            failureHint = "F5-TTS Space is queued. Switching to Edge-TTS.",
+        ),
+        CloudModelContract(
+            providerId = "musicgen-small-hf",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("text / mood prompt", "duration"),
+            schemaNote = "predict · Meta MusicGen background audio Space",
+            failureHint = "MusicGen Space is busy. Switching to Edge-TTS.",
+        ),
+        CloudModelContract(
+            providerId = "audioldm2-hf",
+            support = ModelSupportLevel.READY,
+            requiredInputs = listOf("text prompt", "duration", "guidance"),
+            schemaNote = "predict · AudioLDM2 sound FX Space",
+            failureHint = "AudioLDM2 Space is busy. Switching to Edge-TTS.",
         ),
         CloudModelContract(
             providerId = "mms-tts-eng-hf",

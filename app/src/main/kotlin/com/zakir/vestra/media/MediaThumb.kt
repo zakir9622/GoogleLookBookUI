@@ -23,11 +23,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
+import com.zakir.vestra.ui.components.ShimmerAsyncImage
+import com.zakir.vestra.ui.components.ShimmerBox
 import java.io.File
 
 /**
- * Gallery / wardrobe thumbnails — stills via Coil; video clips via a frame grab
+ * Gallery / wardrobe thumbnails — stills via Coil with shimmer placeholders; video clips via a frame grab
  * so MP4/WebM paths are not treated as broken images.
  */
 @Composable
@@ -39,7 +40,7 @@ fun MediaThumb(
 ) {
     val isVideo = file.extension.lowercase() in VIDEO_EXTS
     if (!isVideo) {
-        AsyncImage(
+        ShimmerAsyncImage(
             model = file,
             contentDescription = contentDescription,
             modifier = modifier,
@@ -71,14 +72,10 @@ fun MediaThumb(
                 contentScale = contentScale,
             )
         } else {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFF1A1A1A)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("Video clip", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
-            }
+            ShimmerBox(
+                modifier = Modifier.fillMaxSize(),
+                shape = RoundedCornerShape(0.dp),
+            )
         }
         Text(
             "CLIP",

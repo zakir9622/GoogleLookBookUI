@@ -72,6 +72,35 @@ class CatalogInvariantsTest {
     }
 
     @Test
+    fun everyCloudModelHasNonEmptySafetyTags() {
+        CloudModelCatalog.providers.forEach { provider ->
+            assertTrue(
+                provider.safetyTags.isNotEmpty(),
+                "${provider.id} has empty safetyTags",
+            )
+        }
+    }
+
+    @Test
+    fun everyCloudModelHasContract() {
+        CloudModelCatalog.providers.forEach { provider ->
+            val contract = com.zakir.vestra.shared.cloud.CloudModelContracts.forProvider(provider)
+            assertNotNull(contract, "${provider.id} contract is null")
+            assertTrue(contract.requiredInputs.isNotEmpty(), "${provider.id} has empty requiredInputs in contract")
+        }
+    }
+
+    @Test
+    fun safetyGateEvaluatesTagsAccurately() {
+        val safeTags = com.zakir.vestra.shared.safety.InputSafetyGate.evaluateSafetyTags("A modest winter coat on a snowy hill")
+        assertTrue(safeTags.contains(com.zakir.vestra.shared.safety.SafetyFeatureTag.MODESTY_ASSURED))
+        assertTrue(safeTags.contains(com.zakir.vestra.shared.safety.SafetyFeatureTag.NSFW_FILTERED))
+
+        val blockedVerdict = com.zakir.vestra.shared.safety.InputSafetyGate.checkPrompt("Generate nsfw nude content")
+        assertTrue(blockedVerdict is com.zakir.vestra.shared.safety.SafetyVerdict.Blocked)
+    }
+
+    @Test
     fun everyCapabilityHasAResolvableCloudDefault() {
         AiCapability.entries.forEach { capability ->
             val default = CloudModelCatalog.defaultFor(capability)

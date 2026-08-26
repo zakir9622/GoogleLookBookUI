@@ -76,6 +76,7 @@ fun PromptComposer(
     showLiveDock: Boolean = true,
     quickPrompts: List<QuickPromptItem> = emptyList(),
     onSelectQuickPrompt: ((String) -> Unit)? = null,
+    modelLoading: Boolean = false,
 ) {
     Column(
         modifier = modifier
@@ -195,7 +196,7 @@ fun PromptComposer(
                 maxLines = 5,
                 placeholder = {
                     Text(
-                        placeholder,
+                        if (modelLoading) "Initializing model weights…" else placeholder,
                         style = MaterialTheme.typography.bodyMedium,
                         color = VestraColors.InkMuted.copy(alpha = 0.7f),
                     )
@@ -210,6 +211,47 @@ fun PromptComposer(
                 ),
                 shape = RoundedCornerShape(16.dp),
             )
+
+            // Auto-detected parameter badges from user prompt
+            val detectedBadges = androidx.compose.runtime.remember(prompt) {
+                com.zakir.vestra.shared.prompt.PromptParameterEngine.detectParameterBadges(prompt)
+            }
+            if (detectedBadges.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "AUTO-PARAMS",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 9.sp,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            letterSpacing = 0.5.sp,
+                        ),
+                        color = VestraColors.Accent,
+                        modifier = Modifier.padding(end = 2.dp),
+                    )
+                    detectedBadges.forEach { badge ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(VestraColors.Accent.copy(alpha = 0.15f))
+                                .border(1.dp, VestraColors.Accent.copy(alpha = 0.35f), RoundedCornerShape(50))
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                        ) {
+                            Text(
+                                badge,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = VestraColors.Ink,
+                            )
+                        }
+                    }
+                }
+            }
 
             // Assist Toggles Row
             if (assistToggles != null) {
@@ -235,6 +277,7 @@ fun PromptComposer(
                 ModelChip(
                     label = modelLabel,
                     onClick = onModelClick,
+                    loading = modelLoading,
                     modifier = Modifier
                         .weight(1f)
                         .testTag(TestTags.MODEL_CHIP),
@@ -262,6 +305,7 @@ fun PromptComposer(
 private fun ModelChip(
     label: String,
     onClick: (() -> Unit)?,
+    loading: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(50)
@@ -274,21 +318,29 @@ private fun ModelChip(
         modifier
             .clip(shape)
             .background(VestraColors.GlassFill)
-            .border(1.dp, VestraColors.Accent.copy(alpha = 0.4f), shape)
+            .border(1.dp, if (loading) VestraColors.Accent else VestraColors.Accent.copy(alpha = 0.4f), shape)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .semantics { contentDescription = a11y }
             .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier
-                .size(7.dp)
-                .clip(CircleShape)
-                .background(VestraColors.Accent),
-        )
+        if (loading) {
+            androidx.compose.material3.CircularProgressIndicator(
+                modifier = Modifier.size(10.dp),
+                strokeWidth = 1.5.dp,
+                color = VestraColors.Accent,
+            )
+        } else {
+            Box(
+                Modifier
+                    .size(7.dp)
+                    .clip(CircleShape)
+                    .background(VestraColors.Accent),
+            )
+        }
         Spacer(Modifier.width(7.dp))
         Text(
-            label,
+            if (loading) "Loading $label…" else label,
             style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
             color = VestraColors.Ink,
             maxLines = 1,

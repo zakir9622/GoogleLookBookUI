@@ -28,6 +28,21 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * Represents a single generation turn in the studio conversational feed.
+ */
+data class StudioFeedItem(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val prompt: String,
+    val referenceUri: String? = null,
+    val timestampMs: Long = System.currentTimeMillis(),
+    val capability: AiCapability,
+    val modelLabel: String? = null,
+    val state: GenerativeState? = null,
+    val liveLog: List<String> = emptyList(),
+    val generationStartedAtMs: Long? = null,
+)
+
 @OptIn(ExperimentalUuidApi::class)
 class GenerativeViewModel(
     private val generative: GenerativeCloudService,
@@ -37,6 +52,7 @@ class GenerativeViewModel(
     private val runDiagnostics: RunDiagnostics? = null,
     private val deviceRamMb: Long? = null,
     private val localJobStore: LocalJobStore? = null,
+    private val context: android.content.Context? = null,
 ) : ViewModel() {
 
     /** The in-flight [LocalJobStore] job id, if the current generation is local — null otherwise. */
@@ -149,7 +165,11 @@ class GenerativeViewModel(
         var job: Job? = null,
         var generationEpoch: Int = 0,
         var generationStartedAtMs: Long? = null,
+        var feedItems: List<StudioFeedItem> = emptyList(),
     )
+
+    private val _feedItems = MutableStateFlow<List<StudioFeedItem>>(emptyList())
+    val feedItems: StateFlow<List<StudioFeedItem>> = _feedItems
 
     private val bags = mutableMapOf<AiCapability, StudioBag>()
     private var boundKey: AiCapability = AiCapability.IMAGE_GEN
@@ -178,6 +198,7 @@ class GenerativeViewModel(
         cur.job = job
         cur.generationEpoch = generationEpoch
         cur.generationStartedAtMs = _generationStartedAtMs.value
+        cur.feedItems = _feedItems.value
 
         boundKey = key
         val next = bag()
@@ -191,6 +212,7 @@ class GenerativeViewModel(
         _lastUsedProviderId.value = next.lastUsedProviderId
         _resultCapability.value = next.resultCapability
         _generationStartedAtMs.value = next.generationStartedAtMs
+        _feedItems.value = next.feedItems
     }
 
     val isBusy: Boolean
@@ -614,12 +636,32 @@ class GenerativeViewModel(
         } else {
             null
         }
+        _feedItems.value = _feedItems.value.map { item ->
+            if (item.state is GenerativeState.Preparing || item.state is GenerativeState.Running || item.state is GenerativeState.CodeStreaming) {
+                item.copy(
+                    state = if (showStopped) GenerativeState.Failed("Stopped by user") else null,
+                    liveLog = _liveLog.value,
+                )
+            } else item
+        }
+        bag(boundKey).feedItems = _feedItems.value
     }
 
     fun clearResult() {
         forceStop(showStopped = false)
         _liveLog.value = emptyList()
         _preflightMessage.value = null
+    }
+
+    fun clearFeed() {
+        clearResult()
+        _feedItems.value = emptyList()
+        bag(boundKey).feedItems = emptyList()
+    }
+
+    fun removeFeedItem(id: String) {
+        _feedItems.value = _feedItems.value.filterNot { it.id == id }
+        bag(boundKey).feedItems = _feedItems.value
     }
 
     private fun appendLive(line: String) {
@@ -640,6 +682,9 @@ class GenerativeViewModel(
         job?.cancel()
         val epoch = ++generationEpoch
         val studioKey = studioKey(studio)
+        val submitPrompt = _prompt.value
+        val submitRef = _referenceUri.value
+
         _preflightMessage.value = null
         _liveLog.value = emptyList()
         _generationStartedAtMs.value = null
@@ -648,7 +693,35 @@ class GenerativeViewModel(
         val startedAt = System.currentTimeMillis()
         _generationStartedAtMs.value = startedAt
         bag(studioKey).generationStartedAtMs = startedAt
+
+        // Add conversational feed item representing this generation turn
+        val feedItem = StudioFeedItem(
+            id = java.util.UUID.randomUUID().toString(),
+            prompt = submitPrompt,
+            referenceUri = submitRef,
+            timestampMs = startedAt,
+            capability = studio,
+            modelLabel = modelLabel,
+            state = GenerativeState.Preparing("Starting…"),
+            liveLog = emptyList(),
+            generationStartedAtMs = startedAt,
+        )
+        val initialFeed = bag(studioKey).feedItems + feedItem
+        bag(studioKey).feedItems = initialFeed
+        if (boundKey == studioKey) {
+            _feedItems.value = initialFeed
+            _prompt.value = "" // Clean input bar immediately for next prompt
+            _referenceUri.value = null
+        }
+
         appendLive("Start · ${capability.name} · ${modelLabel ?: "model"}")
+        context?.let {
+            com.zakir.vestra.service.GenerationForegroundService.start(
+                it,
+                "${studio.name.lowercase().replace('_', ' ').replaceFirstChar { c -> c.uppercase() }} Studio",
+                "Synthesizing with ${modelLabel ?: "AI engine"}...",
+            )
+        }
         // EngineTier is really a try-on-specific concept (AUTO/LITE/PRO/CLOUD); reused loosely
         // here as an on-device/cloud signal for the other capabilities since RunDiagnostics has
         // no dedicated field for it. Was hardcoded to CLOUD unconditionally — the Diagnostics
@@ -661,124 +734,248 @@ class GenerativeViewModel(
             modelLabel = modelLabel,
             deviceRamMb = deviceRamMb,
         )
-        activeLocalJobId = if (local) localJobStore?.start(capability, _prompt.value) else null
+        activeLocalJobId = if (local) localJobStore?.start(capability, submitPrompt) else null
+        val gateModality = when (capability) {
+            RunCapability.IMAGE_GEN, RunCapability.IMAGE_EDIT -> com.zakir.vestra.shared.engine.EngineModality.IMAGE
+            RunCapability.VIDEO -> com.zakir.vestra.shared.engine.EngineModality.VIDEO
+            RunCapability.CODE -> com.zakir.vestra.shared.engine.EngineModality.CODE
+            RunCapability.AUDIO -> com.zakir.vestra.shared.engine.EngineModality.AUDIO
+            else -> com.zakir.vestra.shared.engine.EngineModality.IMAGE
+        }
         job = viewModelScope.launch {
-            var lastStageAt = System.currentTimeMillis()
-            try {
-                block().collect { rawNext ->
-                    if (epoch != generationEpoch) return@collect
-                    // Local-generation failures had no way to correlate the message on screen to
-                    // its full record in Settings → Diagnostics — the record itself always had a
-                    // stable id, it just never reached the user-facing string. Cloud failures
-                    // don't need this: CloudFailure already carries enough context in its message.
-                    val next = if (local && rawNext is GenerativeState.Failed && builder != null) {
-                        rawNext.copy(message = "${rawNext.message} (ref ${builder.id})")
-                    } else {
-                        rawNext
-                    }
-                    if (boundKey != studioKey) {
-                        // User switched tabs — keep updating the owning bag only.
-                        val owner = bag(studioKey)
-                        owner.state = next
-                        when (next) {
-                            is GenerativeState.ImageReady,
-                            is GenerativeState.VideoReady,
-                            is GenerativeState.AudioReady,
-                            is GenerativeState.CodeReady,
-                            -> owner.lastUsedProviderId = when (next) {
-                                is GenerativeState.ImageReady -> next.providerId
-                                is GenerativeState.VideoReady -> next.providerId
-                                is GenerativeState.AudioReady -> next.providerId
-                                is GenerativeState.CodeReady -> next.providerId
-                                else -> owner.lastUsedProviderId
+            com.zakir.vestra.shared.engine.ExclusiveEngineGate.withExclusiveModality(
+                modality = gateModality,
+                modelName = modelLabel ?: "Generator",
+            ) {
+                var lastStageAt = System.currentTimeMillis()
+                try {
+                    block().collect { rawNext ->
+                        if (epoch != generationEpoch) return@collect
+                        val next = if (local && rawNext is GenerativeState.Failed && builder != null) {
+                            rawNext.copy(message = "${rawNext.message} (ref ${builder.id})")
+                        } else {
+                            rawNext
+                        }
+
+                        // Update feed items for the owning bag
+                        val owningBag = bag(studioKey)
+                        val updatedFeed = owningBag.feedItems.map { it ->
+                            if (it.id == feedItem.id) {
+                                it.copy(
+                                    state = next,
+                                    liveLog = _liveLog.value,
+                                )
+                            } else it
+                        }
+                        owningBag.feedItems = updatedFeed
+                        if (boundKey == studioKey) {
+                            _feedItems.value = updatedFeed
+                        }
+
+                        if (boundKey != studioKey) {
+                            // User switched tabs — keep updating the owning bag only.
+                            val owner = bag(studioKey)
+                            owner.state = next
+                            when (next) {
+                                is GenerativeState.ImageReady,
+                                is GenerativeState.VideoReady,
+                                is GenerativeState.AudioReady,
+                                is GenerativeState.CodeReady,
+                                -> owner.lastUsedProviderId = when (next) {
+                                    is GenerativeState.ImageReady -> next.providerId
+                                    is GenerativeState.VideoReady -> next.providerId
+                                    is GenerativeState.AudioReady -> next.providerId
+                                    is GenerativeState.CodeReady -> next.providerId
+                                    else -> owner.lastUsedProviderId
+                                }
+                                else -> Unit
                             }
-                            else -> Unit
+                            return@collect
                         }
-                        return@collect
+                        _state.value = next
+                        val studioTitle = "${studio.name.lowercase().replace('_', ' ').replaceFirstChar { c -> c.uppercase() }} Studio"
+                        when (next) {
+                            is GenerativeState.Preparing -> {
+                                appendLive(next.message)
+                                context?.let { ctx ->
+                                    com.zakir.vestra.service.GenerationForegroundService.updateProgress(
+                                        ctx,
+                                        studioTitle,
+                                        next.message,
+                                        progress = 0,
+                                    )
+                                }
+                            }
+                            is GenerativeState.Running -> {
+                                appendLive(next.stage)
+                                val now = System.currentTimeMillis()
+                                builder?.stage(next.stage, now - lastStageAt)
+                                lastStageAt = now
+                                context?.let { ctx ->
+                                    com.zakir.vestra.service.GenerationForegroundService.updateProgress(
+                                        ctx,
+                                        studioTitle,
+                                        next.stage,
+                                        progress = 50,
+                                    )
+                                }
+                            }
+                            is GenerativeState.ImageReady -> {
+                                appendLive("Image ready")
+                                _lastUsedProviderId.value = next.providerId
+                                ingestCreateImage(next.path, label = "Create", studioKey = studioKey, local = local)
+                                builder?.complete(success = true, note = next.providerId)
+                                completeLocalJob(success = true)
+                                context?.let { ctx ->
+                                    com.zakir.vestra.service.GenerationForegroundService.complete(
+                                        ctx,
+                                        "$studioTitle Ready ✨",
+                                        "Your AI image has been created! Tap to view.",
+                                        imagePath = next.path,
+                                        isFailure = false,
+                                        deepLinkRoute = "studio",
+                                    )
+                                }
+                            }
+                            is GenerativeState.VideoReady -> {
+                                appendLive("Video ready")
+                                _lastUsedProviderId.value = next.providerId
+                                ingestCreateImage(next.path, label = "Video", studioKey = studioKey, local = local)
+                                builder?.complete(success = true, note = next.providerId)
+                                completeLocalJob(success = true)
+                                context?.let { ctx ->
+                                    com.zakir.vestra.service.GenerationForegroundService.complete(
+                                        ctx,
+                                        "$studioTitle Ready ✨",
+                                        "Your video clip is ready! Tap to preview.",
+                                        imagePath = null,
+                                        isFailure = false,
+                                        deepLinkRoute = "studio",
+                                    )
+                                }
+                            }
+                            is GenerativeState.AudioReady -> {
+                                appendLive("Audio ready")
+                                _lastUsedProviderId.value = next.providerId
+                                builder?.complete(success = true, note = next.providerId)
+                                completeLocalJob(success = true)
+                                context?.let { ctx ->
+                                    com.zakir.vestra.service.GenerationForegroundService.complete(
+                                        ctx,
+                                        "$studioTitle Ready ✨",
+                                        "Your synthesized audio track is ready!",
+                                        imagePath = null,
+                                        isFailure = false,
+                                        deepLinkRoute = "studio",
+                                    )
+                                }
+                            }
+                            is GenerativeState.CodeReady -> {
+                                appendLive("Code ready · ${next.tokensIn}+${next.tokensOut} tokens")
+                                _lastUsedProviderId.value = next.providerId
+                                builder?.complete(
+                                    success = true,
+                                    note = "${next.providerId} · ${next.tokensIn}+${next.tokensOut} tokens",
+                                )
+                                completeLocalJob(success = true)
+                                context?.let { ctx ->
+                                    com.zakir.vestra.service.GenerationForegroundService.complete(
+                                        ctx,
+                                        "$studioTitle Ready ✨",
+                                        "Your code solution is ready! Tap to view.",
+                                        imagePath = null,
+                                        isFailure = false,
+                                        deepLinkRoute = "studio",
+                                    )
+                                }
+                            }
+                            is GenerativeState.CodeStreaming -> {
+                                // _state.value is already updated above — ResultPane renders the
+                                // growing text live. Not appended to the live log: a line per token
+                                // chunk would flood its bounded 40-line window.
+                            }
+                            is GenerativeState.TranscribeReady -> {
+                                appendLive("Transcription ready")
+                                _lastUsedProviderId.value = next.providerId
+                                builder?.complete(success = true, note = next.providerId)
+                                completeLocalJob(success = true)
+                                context?.let { ctx ->
+                                    com.zakir.vestra.service.GenerationForegroundService.complete(
+                                        ctx,
+                                        "$studioTitle Ready ✨",
+                                        "Audio transcription complete!",
+                                        imagePath = null,
+                                        isFailure = false,
+                                        deepLinkRoute = "studio",
+                                    )
+                                }
+                            }
+                            is GenerativeState.Failed -> {
+                                appendLive("Failed · ${next.message.take(120)}")
+                                builder?.complete(success = false, error = next.message)
+                                completeLocalJob(success = false)
+                                context?.let { ctx ->
+                                    com.zakir.vestra.service.GenerationForegroundService.complete(
+                                        ctx,
+                                        "$studioTitle Issue",
+                                        next.message.take(100),
+                                        imagePath = null,
+                                        isFailure = true,
+                                        deepLinkRoute = "studio",
+                                    )
+                                }
+                            }
+                        }
                     }
-                    _state.value = next
-                    when (next) {
-                        is GenerativeState.Preparing -> appendLive(next.message)
-                        is GenerativeState.Running -> {
-                            appendLive(next.stage)
-                            val now = System.currentTimeMillis()
-                            builder?.stage(next.stage, now - lastStageAt)
-                            lastStageAt = now
-                        }
-                        is GenerativeState.ImageReady -> {
-                            appendLive("Image ready")
-                            _lastUsedProviderId.value = next.providerId
-                            ingestCreateImage(next.path, label = "Create", studioKey = studioKey, local = local)
-                            builder?.complete(success = true, note = next.providerId)
-                            completeLocalJob(success = true)
-                        }
-                        is GenerativeState.VideoReady -> {
-                            appendLive("Video ready")
-                            _lastUsedProviderId.value = next.providerId
-                            ingestCreateImage(next.path, label = "Video", studioKey = studioKey, local = local)
-                            builder?.complete(success = true, note = next.providerId)
-                            completeLocalJob(success = true)
-                        }
-                        is GenerativeState.AudioReady -> {
-                            appendLive("Audio ready")
-                            _lastUsedProviderId.value = next.providerId
-                            builder?.complete(success = true, note = next.providerId)
-                            completeLocalJob(success = true)
-                        }
-                        is GenerativeState.CodeReady -> {
-                            appendLive("Code ready · ${next.tokensIn}+${next.tokensOut} tokens")
-                            _lastUsedProviderId.value = next.providerId
-                            builder?.complete(
-                                success = true,
-                                note = "${next.providerId} · ${next.tokensIn}+${next.tokensOut} tokens",
+                } catch (_: CancellationException) {
+                    context?.let { ctx -> com.zakir.vestra.service.GenerationForegroundService.stop(ctx) }
+                } catch (e: Exception) {
+                    if (epoch == generationEpoch) {
+                        val rawMsg = e.message?.take(280)?.ifBlank { null } ?: "Generation failed. Tap Retry."
+                        val msg = if (local && builder != null) "$rawMsg (ref ${builder.id})" else rawMsg
+                        completeLocalJob(success = false)
+                        context?.let { ctx ->
+                            com.zakir.vestra.service.GenerationForegroundService.complete(
+                                ctx,
+                                "Generation Failed",
+                                msg.take(100),
+                                imagePath = null,
+                                isFailure = true,
+                                deepLinkRoute = "studio",
                             )
-                            completeLocalJob(success = true)
                         }
-                        is GenerativeState.CodeStreaming -> {
-                            // _state.value is already updated above — ResultPane renders the
-                            // growing text live. Not appended to the live log: a line per token
-                            // chunk would flood its bounded 40-line window.
+                        val failState = GenerativeState.Failed(msg)
+                        if (boundKey == studioKey) {
+                            appendLive("Error · $msg")
+                            _state.value = failState
+                        } else {
+                            bag(studioKey).state = failState
                         }
-                        is GenerativeState.TranscribeReady -> {
-                            appendLive("Transcription ready")
-                            _lastUsedProviderId.value = next.providerId
-                            builder?.complete(success = true, note = next.providerId)
-                            completeLocalJob(success = true)
+                        val owningBag = bag(studioKey)
+                        owningBag.feedItems = owningBag.feedItems.map { it ->
+                            if (it.id == feedItem.id) {
+                                it.copy(state = failState, liveLog = _liveLog.value)
+                            } else it
                         }
-                        is GenerativeState.Failed -> {
-                            appendLive("Failed · ${next.message.take(120)}")
-                            builder?.complete(success = false, error = next.message)
-                            completeLocalJob(success = false)
+                        if (boundKey == studioKey) {
+                            _feedItems.value = owningBag.feedItems
                         }
+                        builder?.complete(success = false, error = rawMsg)
                     }
-                }
-            } catch (_: CancellationException) {
-                // Expected on force stop / clear
-            } catch (e: Exception) {
-                if (epoch == generationEpoch) {
-                    val rawMsg = e.message?.take(280)?.ifBlank { null } ?: "Generation failed. Tap Retry."
-                    val msg = if (local && builder != null) "$rawMsg (ref ${builder.id})" else rawMsg
-                    completeLocalJob(success = false)
+                } finally {
                     if (boundKey == studioKey) {
-                        appendLive("Error · $msg")
-                        _state.value = GenerativeState.Failed(msg)
+                        bag().job = null
+                        bag().generationEpoch = generationEpoch
+                        bag().state = _state.value
+                        bag().liveLog = _liveLog.value
+                        bag().lastUsedProviderId = _lastUsedProviderId.value
+                        bag().resultCapability = _resultCapability.value
+                        bag().feedItems = _feedItems.value
                     } else {
-                        bag(studioKey).state = GenerativeState.Failed(msg)
+                        bag(studioKey).job = null
                     }
-                    builder?.complete(success = false, error = rawMsg)
+                    if (job?.isActive != true) job = null
                 }
-            } finally {
-                if (boundKey == studioKey) {
-                    bag().job = null
-                    bag().generationEpoch = generationEpoch
-                    bag().state = _state.value
-                    bag().liveLog = _liveLog.value
-                    bag().lastUsedProviderId = _lastUsedProviderId.value
-                    bag().resultCapability = _resultCapability.value
-                } else {
-                    bag(studioKey).job = null
-                }
-                if (job?.isActive != true) job = null
             }
         }
         bag(studioKey).job = job

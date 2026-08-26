@@ -8,7 +8,9 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,8 +20,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImagePainter
+import coil3.compose.SubcomposeAsyncImage
+import coil3.compose.SubcomposeAsyncImageContent
+import com.zakir.vestra.ui.theme.RadiusTokens
 import com.zakir.vestra.ui.theme.VestraColors
 import com.zakir.vestra.ui.util.rememberReduceMotion
 
@@ -35,13 +43,24 @@ import com.zakir.vestra.ui.util.rememberReduceMotion
  */
 @Composable
 fun ShimmerBlock(modifier: Modifier = Modifier, height: Dp = 56.dp) {
-    val shape = RoundedCornerShape(14.dp)
+    ShimmerBox(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(height),
+        shape = RoundedCornerShape(14.dp),
+    )
+}
+
+/** A generic shimmer placeholder box matching any shape and dimensions. */
+@Composable
+fun ShimmerBox(
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(RadiusTokens.md),
+) {
     val reduceMotion = rememberReduceMotion()
     if (reduceMotion) {
-        androidx.compose.foundation.layout.Box(
+        Box(
             modifier
-                .fillMaxWidth()
-                .height(height)
                 .clip(shape)
                 .background(VestraColors.GlassFill),
         )
@@ -52,7 +71,7 @@ fun ShimmerBlock(modifier: Modifier = Modifier, height: Dp = 56.dp) {
         initialValue = -1f,
         targetValue = 2f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = LinearEasing),
+            animation = tween(1300, easing = LinearEasing),
             repeatMode = RepeatMode.Restart,
         ),
         label = "shimmer-sweep",
@@ -60,18 +79,39 @@ fun ShimmerBlock(modifier: Modifier = Modifier, height: Dp = 56.dp) {
     val brush = Brush.linearGradient(
         colors = listOf(
             VestraColors.GlassFill,
-            VestraColors.GlassHighlight,
+            VestraColors.GlassHighlight.copy(alpha = 0.45f),
             VestraColors.GlassFill,
         ),
-        start = Offset(sweep * 300f - 150f, 0f),
-        end = Offset(sweep * 300f + 150f, 0f),
+        start = Offset(sweep * 350f - 175f, 0f),
+        end = Offset(sweep * 350f + 175f, 0f),
     )
-    androidx.compose.foundation.layout.Box(
+    Box(
         modifier
-            .fillMaxWidth()
-            .height(height)
             .clip(shape)
             .background(brush),
+    )
+}
+
+/**
+ * AsyncImage enhanced with real-time shimmering placeholder animation while
+ * loading cached trials and generated looks from disk cache.
+ */
+@Composable
+fun ShimmerAsyncImage(
+    model: Any?,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+    shape: Shape = RoundedCornerShape(0.dp),
+) {
+    SubcomposeAsyncImage(
+        model = model,
+        contentDescription = contentDescription,
+        modifier = modifier.clip(shape),
+        contentScale = contentScale,
+        loading = {
+            ShimmerBox(modifier = Modifier.fillMaxSize(), shape = shape)
+        },
     )
 }
 

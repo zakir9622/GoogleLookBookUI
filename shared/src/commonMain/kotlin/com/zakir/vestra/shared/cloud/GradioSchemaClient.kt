@@ -70,8 +70,14 @@ class GradioSchemaClient(
         return when {
             n.contains("prompt") || n == "text" || n == "instruction" ->
                 roles["prompt"] ?: roles["text"]
+            n.contains("person") || n.contains("human") || n.contains("model") || n.contains("vton_img") || n.contains("background") || n.contains("image_editor") ->
+                roles["person"] ?: roles["human"] ?: roles["image"]
+            n.contains("garment") || n.contains("cloth") || n.contains("garm") || n.contains("dress") ->
+                roles["garment"] ?: roles["cloth"] ?: roles["image"]
+            n.contains("category") || n.contains("clothing_type") || n.contains("cloth_type") ->
+                roles["category"] ?: roles["cloth_type"]
             n.contains("image") || n.contains("init") || n == "img" ->
-                roles["image"]
+                roles["image"] ?: roles["person"] ?: roles["garment"]
             n.contains("negative") -> roles["negative"]
             n.contains("seed") -> roles["seed"]
             n.contains("step") -> roles["steps"]
@@ -146,6 +152,33 @@ class GradioSchemaClient(
             put("height", JsonPrimitive(height))
             if (negative.isNotBlank()) put("negative", JsonPrimitive(negative))
             if (image != null) put("image", image)
+        }
+
+        fun tryOnRoles(
+            person: JsonElement,
+            garment: JsonElement,
+            category: String = "overall",
+            garmentDesc: String = "Dress / fashion garment",
+            steps: Int = 30,
+            guidance: Double = 2.5,
+            seed: Int = 42,
+        ): Map<String, JsonElement> = buildMap {
+            put("person", person)
+            put("human", person)
+            put("vton_img", person)
+            put("background", person)
+            put("model_img", person)
+            put("garment", garment)
+            put("cloth", garment)
+            put("garm_img", garment)
+            put("category", JsonPrimitive(category))
+            put("cloth_type", JsonPrimitive(category))
+            put("clothing_type", JsonPrimitive(category))
+            put("garment_des", JsonPrimitive(garmentDesc))
+            put("prompt", JsonPrimitive(garmentDesc))
+            put("steps", JsonPrimitive(steps))
+            put("guidance", JsonPrimitive(guidance))
+            put("seed", JsonPrimitive(seed))
         }
     }
 }

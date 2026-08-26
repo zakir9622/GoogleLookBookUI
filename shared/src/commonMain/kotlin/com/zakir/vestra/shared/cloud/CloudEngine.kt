@@ -31,6 +31,7 @@ class CloudEngine(
 ) : TryOnEngine {
 
     private val hf = HfGradioClient(http)
+    private val schema = GradioSchemaClient(http)
 
     override val tier: EngineTier = EngineTier.CLOUD
 
@@ -98,7 +99,7 @@ class CloudEngine(
                 }
                 try {
                     t0 = EpochClock.System.nowMs()
-                    val resultUrlOrPath = runHfSpace(candidate, personDataUrl, garmentDataUrl, category)
+                    val resultUrlOrPath = runHfSpace(candidate, personDataUrl, garmentDataUrl, category, request)
                     DiagnosticsHook.stage(diag, "space_predict", t0, candidate.displayName)
                     emit(GenerationState.Running(0.85f, "Downloading result…"))
                     t0 = EpochClock.System.nowMs()
@@ -160,14 +161,59 @@ class CloudEngine(
         person: String,
         garment: String,
         category: GarmentCategory,
+        request: TryOnRequest? = null,
     ): String {
+        val payload = resolveTryOnPayload(provider, person, garment, category, request)
         val result = hf.predict(
             spaceHost = provider.endpoint,
             apiName = CloudModelContracts.effectiveApiName(provider),
-            data = SpacePayloads.forTryOn(provider.id, person, garment, category),
+            data = payload,
             hfToken = settings.hfToken.value,
         )
         return GradioOutput.extractMediaRef(result)
+    }
+
+    private suspend fun resolveTryOnPayload(
+        provider: CloudModelProvider,
+        person: String,
+        garment: String,
+        category: GarmentCategory,
+        request: TryOnRequest? = null,
+    ): List<kotlinx.serialization.json.JsonElement> {
+        val handTuned = runCatching {
+            SpacePayloads.forTryOn(
+                providerId = provider.id,
+                personDataUrl = person,
+                garmentDataUrl = garment,
+                category = category,
+                customSteps = request?.customSteps,
+                customCfg = request?.customCfg,
+                customSeed = request?.seed?.toInt(),
+                customGarmentDesc = request?.customGarmentDesc,
+                autoCrop = request?.autoCrop ?: false,
+                autoMask = request?.autoMask ?: true,
+                customClothType = request?.clothType,
+            )
+        }.getOrNull()
+        if (handTuned != null) return handTuned
+
+        val tryOnParams = com.zakir.vestra.shared.prompt.PromptParameterEngine.extractTryOnParams(explicitCategory = category)
+        val roles = GradioSchemaClient.tryOnRoles(
+            person = SpacePayloads.imageEditor(person),
+            garment = SpacePayloads.fileData(garment),
+            category = request?.clothType ?: tryOnParams.clothType,
+            garmentDesc = request?.customGarmentDesc ?: tryOnParams.garmentDesc,
+            steps = request?.customSteps ?: tryOnParams.steps,
+            guidance = request?.customCfg ?: tryOnParams.cfg,
+            seed = request?.seed?.toInt() ?: tryOnParams.seed,
+        )
+        val schemaPayload = schema.buildPayload(
+            spaceHost = provider.endpoint,
+            apiName = CloudModelContracts.effectiveApiName(provider),
+            roles = roles,
+        )
+        if (schemaPayload != null) return schemaPayload
+        return listOf(SpacePayloads.fileData(person), SpacePayloads.fileData(garment))
     }
 }
 

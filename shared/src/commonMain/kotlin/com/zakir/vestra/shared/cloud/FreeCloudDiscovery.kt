@@ -220,6 +220,9 @@ private data class RouterModelHit(
 private val KNOWN_INFERENCE_IMAGE_MODELS = setOf(
     "black-forest-labs/FLUX.1-schnell",
     "stabilityai/sdxl-turbo",
+    "stabilityai/stable-diffusion-3.5-large-turbo",
+    "stabilityai/stable-diffusion-3.5-medium",
+    "stabilityai/stable-diffusion-xl-base-1.0",
     "Tongyi-MAI/Z-Image-Turbo",
     "timbrooks/instruct-pix2pix",
 )

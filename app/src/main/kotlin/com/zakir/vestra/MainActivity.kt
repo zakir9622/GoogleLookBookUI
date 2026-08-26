@@ -70,6 +70,7 @@ class MainActivity : ComponentActivity() {
                         freeCloudDiscovery = app.freeCloudDiscovery,
                         humanParsing = app.humanParsing,
                         liteEngineIo = app.liteEngineIo,
+                        tryOnDiskCache = app.tryOnDiskCache,
                         navController = navController,
                         pendingDeepLinkIntent = pendingIntent,
                         onDeepLinkHandled = { pendingIntent = null },

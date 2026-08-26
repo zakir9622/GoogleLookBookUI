@@ -1,14 +1,22 @@
 package com.zakir.vestra.ui.screens.home
 
+import android.content.Context
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +27,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -26,21 +35,23 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.outlined.Checkroom
-import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Collections
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,52 +59,54 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.zakir.vestra.media.MediaExport
+import com.zakir.vestra.ui.components.ShimmerAsyncImage
 import com.zakir.vestra.shared.cloud.AiCapability
 import com.zakir.vestra.shared.cloud.FreeCloudDiscovery
 import com.zakir.vestra.shared.content.LookbookCopy
 import com.zakir.vestra.shared.domain.PackStatus
+import com.zakir.vestra.shared.engine.EngineRouter
 import com.zakir.vestra.shared.news.NewsRepository
 import com.zakir.vestra.shared.packs.ModelPackManager
 import com.zakir.vestra.shared.settings.AppSettings
+import com.zakir.vestra.shared.usage.UsageLedger
+import com.zakir.vestra.shared.wardrobe.WardrobeEntry
 import com.zakir.vestra.shared.wardrobe.WardrobeRepository
-import com.zakir.vestra.ui.GenerativeViewModel
 import com.zakir.vestra.ui.ChatViewModel
-import com.zakir.vestra.ui.components.AtelierHero
-import com.zakir.vestra.ui.components.GlassCard
+import com.zakir.vestra.ui.GenerativeViewModel
+import com.zakir.vestra.ui.TestTags
 import com.zakir.vestra.ui.components.GlassSectionLabel
 import com.zakir.vestra.ui.components.InterruptedJobsBanner
+import com.zakir.vestra.ui.components.QuickCreateSheet
 import com.zakir.vestra.ui.components.SpatialBackground
-import com.zakir.vestra.ui.TestTags
-import com.zakir.vestra.ui.screens.news.NewsChatScreen
+import com.zakir.vestra.ui.screens.settings.SettingsSection
+import com.zakir.vestra.ui.screens.settings.SettingsScreen
+import com.zakir.vestra.ui.screens.wardrobe.WardrobeScreen
+import com.zakir.vestra.ui.theme.RadiusTokens
 import com.zakir.vestra.ui.theme.VestraColors
 import com.zakir.vestra.ui.util.rememberReduceMotion
 import java.io.File
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
-// `internal` rather than `private` so the pager-index math below is reachable from unit tests:
-// filtering a tab out makes `ordinal` and the visible-list index diverge, which is exactly the
-// kind of off-by-one that only shows up on a device.
+// Preserved for compatibility with existing tests and enum references
 internal enum class HomeTab(val label: String, val routeKey: String) {
-    // Try-on is temporarily disabled app-wide — kept in the enum (not deleted) so the try-on
-    // engines/routes/tests keep compiling and it's a one-line revert to bring the tab back.
-    // To re-enable: flip TRY_ON_TAB_ENABLED to true below.
     TRY_ON("Try-on", "tryon"),
     IMAGE("Image", "image"),
     VIDEO("Video", "video"),
@@ -103,25 +116,41 @@ internal enum class HomeTab(val label: String, val routeKey: String) {
     ;
 
     companion object {
-        /** Temporarily off while try-on is disabled app-wide. Flip to bring the tab back. */
         const val TRY_ON_TAB_ENABLED = false
-
         val visible: List<HomeTab> = entries.filter { TRY_ON_TAB_ENABLED || it != TRY_ON }
-
         fun fromRouteKey(key: String?): HomeTab =
             visible.firstOrNull { it.routeKey.equals(key, ignoreCase = true) } ?: visible.first()
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+/** Bottom Dock Navigation Bar 3-Item Destinations */
+enum class MainDockTab(val title: String, val icon: ImageVector, val tag: String) {
+    HOME("Home", Icons.Outlined.AutoAwesome, "dock_tab_home"),
+    LIBRARY("Library", Icons.Outlined.Collections, "dock_tab_library"),
+    SETTINGS("Settings", Icons.Outlined.Settings, "dock_tab_settings"),
+}
+
+/** Generator Pill Item on the Home Dashboard */
+data class GeneratorPill(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val badge: String,
+    val icon: ImageVector,
+    val accentColor: Color,
+    val onClick: () -> Unit,
+)
+
 @Composable
 fun HomeScreen(
     appSettings: AppSettings,
     wardrobe: WardrobeRepository,
     packManager: ModelPackManager,
     generativeViewModel: GenerativeViewModel,
+    freeCloudDiscovery: FreeCloudDiscovery,
+    engineRouter: EngineRouter,
+    usageLedger: UsageLedger,
     localJobStore: com.zakir.vestra.shared.jobs.LocalJobStore? = null,
-    freeCloudDiscovery: FreeCloudDiscovery? = null,
     newsRepository: NewsRepository? = null,
     chatViewModel: ChatViewModel? = null,
     onNewLook: () -> Unit,
@@ -131,13 +160,22 @@ fun HomeScreen(
     onOpenHelp: () -> Unit,
     onOpenNewsChat: (headline: String?) -> Unit = {},
     initialTabRoute: String? = null,
+    // Direct isolated studio callbacks
+    onOpenImageStudio: () -> Unit = {},
+    onOpenVideoStudio: () -> Unit = {},
+    onOpenCodeStudio: () -> Unit = {},
+    onOpenAudioStudio: () -> Unit = {},
+    onOpenNewsScreen: () -> Unit = {},
 ) {
-    val context = LocalContext.current
     val recent by wardrobe.entries.collectAsState()
     val packStates by packManager.states.collectAsState()
+
+    var showQuickCreate by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         packManager.refresh()
     }
+
     val proReady = listOf("pro-v2-int8", "pro-v1").any { id ->
         packStates[id]?.isReady() == true
     }
@@ -158,13 +196,7 @@ fun HomeScreen(
         animationSpec = if (reduceMotion) tween(0) else tween(640),
         label = "homeFade",
     )
-    val heroLift by animateFloatAsState(
-        targetValue = if (appeared || reduceMotion) 0f else 18f,
-        animationSpec = if (reduceMotion) tween(0) else spring(stiffness = Spring.StiffnessMediumLow),
-        label = "heroLift",
-    )
 
-    val tryOnModel = appSettings.selectedProvider(AiCapability.TRY_ON).displayName
     val hfToken by appSettings.hfToken.collectAsState()
     val hfReady = !hfToken.isNullOrBlank()
     val liteReady = packStates["lite-v1"]?.isReady() == true
@@ -172,65 +204,177 @@ fun HomeScreen(
     val statusLine = buildString {
         append(
             when {
-                proReady -> "Pro local try-on ready"
-                liteReady -> "Fast local try-on ready"
-                liteState?.status == PackStatus.INSTALLED -> "Fast try-on verifying…"
-                else -> "Fast try-on needs download"
+                proReady -> "Pro local ready"
+                liteReady -> "Fast local ready"
+                liteState?.status == PackStatus.INSTALLED -> "Engine verifying…"
+                else -> "Local engines active"
             },
         )
         append("  ·  ")
-        append(if (hfReady) "Cloud token set" else "Cloud needs HF token")
+        append(if (hfReady) "Cloud token set" else "Offline-first")
         append("  ·  ")
         append(if (online) "Online" else "Offline")
-        append("  ·  ")
-        append(tryOnModel)
     }
 
-    val tabs = HomeTab.visible
-    val initialPage = tabs.indexOf(HomeTab.fromRouteKey(initialTabRoute)).coerceAtLeast(0)
-    val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { tabs.size })
-    val scope = rememberCoroutineScope()
-
-    LaunchedEffect(initialTabRoute) {
-        val target = tabs.indexOf(HomeTab.fromRouteKey(initialTabRoute)).coerceAtLeast(0)
-        if (pagerState.currentPage != target) {
-            pagerState.scrollToPage(target)
-        }
-    }
-
-    fun openNewsChat(headline: String?) {
-        // NewsChatScreen owns its own chat input locally and already fills it with the headline
-        // before this callback runs — writing the headline into GenerativeViewModel.prompt here
-        // too was a real bug: that flow is shared by every studio tab (Image/Video/Code/Audio),
-        // so a headline tap silently overwrote whatever prompt was typed in the currently-bound
-        // studio, which is exactly the "prompts leak between tabs" symptom this was causing.
-        onOpenNewsChat(headline)
-        scope.launch {
-            pagerState.animateScrollToPage(tabs.indexOf(HomeTab.NEWS))
-        }
+    // Generator model pills list for isolated page navigation
+    val generatorPills = remember(
+        onOpenImageStudio,
+        onOpenVideoStudio,
+        onOpenCodeStudio,
+        onOpenAudioStudio,
+        onOpenNewsScreen,
+        onNewLook,
+    ) {
+        listOf(
+            GeneratorPill(
+                id = "tryon",
+                title = "Virtual Fitting Studio",
+                subtitle = "Photorealistic try-on on customizable fashion models",
+                badge = "Core Atelier",
+                icon = Icons.Outlined.AutoAwesome,
+                accentColor = VestraColors.Accent,
+                onClick = onNewLook,
+            ),
+            GeneratorPill(
+                id = "image",
+                title = "Image Studio",
+                subtitle = "Text-to-image & couture prompt diffusion",
+                badge = "Tiny-SD / Cloud",
+                icon = Icons.Outlined.Image,
+                accentColor = VestraColors.ModalityImage,
+                onClick = onOpenImageStudio,
+            ),
+            GeneratorPill(
+                id = "video",
+                title = "Video Studio",
+                subtitle = "Motion camera sweeps & cinematic runway clips",
+                badge = "Motion Pipeline",
+                icon = Icons.Outlined.Videocam,
+                accentColor = VestraColors.ModalityVideo,
+                onClick = onOpenVideoStudio,
+            ),
+            GeneratorPill(
+                id = "code",
+                title = "Code Studio",
+                subtitle = "LiteRT Gemma on-device architecture & UI generation",
+                badge = "100% On-Device",
+                icon = Icons.Outlined.Code,
+                accentColor = VestraColors.ModalityCode,
+                onClick = onOpenCodeStudio,
+            ),
+            GeneratorPill(
+                id = "audio",
+                title = "Audio Lab",
+                subtitle = "Native TTS & DSP voice pitch/formant shifting",
+                badge = "DSP Engine",
+                icon = Icons.Outlined.GraphicEq,
+                accentColor = VestraColors.ModalityAudio,
+                onClick = onOpenAudioStudio,
+            ),
+            GeneratorPill(
+                id = "news",
+                title = "Fashion Intel & Chat",
+                subtitle = "Live trend curation & on-device AI reasoning",
+                badge = "Live Intel",
+                icon = Icons.Outlined.Newspaper,
+                accentColor = VestraColors.AccentSoft,
+                onClick = onOpenNewsScreen,
+            ),
+        )
     }
 
     SpatialBackground {
-        Column(
-            Modifier
+        Box(
+            modifier = Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .alpha(fade),
+                .alpha(fade)
+                .padding(bottom = 80.dp),
         ) {
-            androidx.compose.foundation.layout.Box(Modifier.padding(horizontal = 18.dp)) {
+            HomeDashboardContent(
+                statusLine = statusLine,
+                proReady = proReady,
+                generatorPills = generatorPills,
+                recentLooks = recent,
+                localJobStore = localJobStore,
+                onOpenPacks = onOpenPacks,
+                onOpenHelp = onOpenHelp,
+                onOpenWardrobe = onOpenWardrobe,
+                onOpenSettings = onOpenSettings,
+                onSelectRecent = { onOpenWardrobe() },
+            )
+        }
+    }
+
+    // Quick Create Sheet (if triggered)
+    if (showQuickCreate) {
+        QuickCreateSheet(
+            onSelectTab = { tab ->
+                showQuickCreate = false
+                when (tab) {
+                    HomeTab.IMAGE -> onOpenImageStudio()
+                    HomeTab.VIDEO -> onOpenVideoStudio()
+                    HomeTab.CODE -> onOpenCodeStudio()
+                    HomeTab.AUDIO -> onOpenAudioStudio()
+                    HomeTab.NEWS -> onOpenNewsScreen()
+                    HomeTab.TRY_ON -> onNewLook()
+                }
+            },
+            onStartTryOn = {
+                showQuickCreate = false
+                onNewLook()
+            },
+            onDismiss = { showQuickCreate = false },
+        )
+    }
+}
+
+/**
+ * Main Home Dashboard: Displays Header, Status, and Separate Model Generator Button Pills
+ */
+@Composable
+private fun HomeDashboardContent(
+    statusLine: String,
+    proReady: Boolean,
+    generatorPills: List<GeneratorPill>,
+    recentLooks: List<WardrobeEntry>,
+    localJobStore: com.zakir.vestra.shared.jobs.LocalJobStore?,
+    onOpenPacks: () -> Unit,
+    onOpenHelp: () -> Unit,
+    onOpenWardrobe: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onSelectRecent: (WardrobeEntry) -> Unit,
+) {
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 18.dp, top = 10.dp, end = 18.dp, bottom = 24.dp),
+    ) {
+        // Interrupted jobs banner if any
+        if (localJobStore != null) {
+            item(key = "interrupted_jobs") {
                 InterruptedJobsBanner(localJobStore)
+                Spacer(Modifier.height(8.dp))
             }
+        }
+
+        // Top App Header
+        item(key = "header") {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp),
+                    .padding(vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column {
                     Text(
                         LookbookCopy.PRODUCT_NAME,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp,
+                        ),
                         color = VestraColors.Ink,
                     )
                     Text(
@@ -239,6 +383,7 @@ fun HomeScreen(
                         color = VestraColors.Accent,
                     )
                 }
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         Modifier
@@ -252,11 +397,12 @@ fun HomeScreen(
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                     ) {
                         Text(
-                            if (proReady) "Pro" else "Fast",
+                            if (proReady) "Pro Engine" else "Fast Engine",
                             style = MaterialTheme.typography.labelMedium,
                             color = Color.White,
                         )
                     }
+
                     IconButton(onClick = onOpenHelp) {
                         Icon(
                             Icons.AutoMirrored.Outlined.HelpOutline,
@@ -264,13 +410,7 @@ fun HomeScreen(
                             tint = VestraColors.Ink,
                         )
                     }
-                    IconButton(onClick = onOpenWardrobe) {
-                        Icon(
-                            Icons.Outlined.Checkroom,
-                            contentDescription = LookbookCopy.STUDIO_WARDROBE,
-                            tint = VestraColors.Ink,
-                        )
-                    }
+
                     IconButton(
                         onClick = onOpenSettings,
                         modifier = Modifier.testTag(TestTags.OPEN_SETTINGS_BUTTON),
@@ -294,164 +434,116 @@ fun HomeScreen(
                 }
             }
 
-            ScrollableTabRow(
-                selectedTabIndex = pagerState.currentPage,
-                containerColor = Color.Transparent,
-                contentColor = VestraColors.Ink,
-                edgePadding = 12.dp,
-                divider = {},
-                indicator = {},
-            ) {
-                tabs.forEachIndexed { index, tab ->
-                    val selected = pagerState.currentPage == index
-                    Tab(
-                        selected = selected,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(index) }
-                        },
-                        modifier = Modifier.testTag(TestTags.homeTab(tab.routeKey)),
-                        text = {
-                            Text(
-                                tab.label,
-                                color = if (selected) VestraColors.Accent else VestraColors.InkMuted,
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        },
-                    )
-                }
-            }
-
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                beyondViewportPageCount = 0,
-            ) { page ->
-                when (tabs[page]) {
-                    HomeTab.TRY_ON -> TryOnPage(
-                        statusLine = statusLine,
-                        proReady = proReady,
-                        heroLift = heroLift,
-                        recent = recent,
-                        onNewLook = onNewLook,
-                        onOpenWardrobe = onOpenWardrobe,
-                        onOpenPacks = onOpenPacks,
-                    )
-                    HomeTab.IMAGE -> UnifiedStudioPane(
-                        capability = AiCapability.IMAGE_GEN,
-                        viewModel = generativeViewModel,
-                        onOpenSettings = onOpenSettings,
-                        freeCloudDiscovery = freeCloudDiscovery,
-                        packManager = packManager,
-                    )
-                    HomeTab.VIDEO -> UnifiedStudioPane(
-                        capability = AiCapability.VIDEO,
-                        viewModel = generativeViewModel,
-                        onOpenSettings = onOpenSettings,
-                        freeCloudDiscovery = freeCloudDiscovery,
-                        packManager = packManager,
-                    )
-                    HomeTab.AUDIO -> AudioStudioPane(
-                        viewModel = generativeViewModel,
-                        onOpenSettings = onOpenSettings,
-                        freeCloudDiscovery = freeCloudDiscovery,
-                        packManager = packManager,
-                    )
-                    HomeTab.CODE -> UnifiedStudioPane(
-                        capability = AiCapability.CODE,
-                        viewModel = generativeViewModel,
-                        onOpenSettings = onOpenSettings,
-                        freeCloudDiscovery = freeCloudDiscovery,
-                        packManager = packManager,
-                    )
-                    HomeTab.NEWS -> NewsChatScreen(
-                        newsRepository = newsRepository,
-                        chatViewModel = chatViewModel,
-                        appSettings = appSettings,
-                        freeCloudDiscovery = freeCloudDiscovery,
-                        packManager = packManager,
-                        onHeadlineSelected = ::openNewsChat,
-                    )
-                }
-            }
+            Spacer(Modifier.height(14.dp))
         }
-    }
-}
 
-@Composable
-private fun TryOnPage(
-    statusLine: String,
-    proReady: Boolean,
-    heroLift: Float,
-    recent: List<com.zakir.vestra.shared.wardrobe.WardrobeEntry>,
-    onNewLook: () -> Unit,
-    onOpenWardrobe: () -> Unit,
-    onOpenPacks: () -> Unit,
-) {
-    val context = LocalContext.current
+        // Engine Status Card
+        item(key = "status_hero") {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(RadiusTokens.lg))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                VestraColors.AtelierContainer.copy(alpha = 0.95f),
+                                VestraColors.AtelierCanvas.copy(alpha = 0.98f),
+                            ),
+                        ),
+                    )
+                    .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(RadiusTokens.lg))
+                    .padding(16.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(VestraColors.Accent),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "EXCLUSIVE ON-DEVICE ENGINE GATE",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.1.sp,
+                                ),
+                                color = VestraColors.Ivory,
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = statusLine,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = VestraColors.IvoryMuted,
+                        )
+                    }
 
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 18.dp, top = 8.dp, end = 18.dp, bottom = 24.dp),
-    ) {
-        item(key = "hero") {
-            GlassSectionLabel("CORE TRY-ON")
-            Box(Modifier.padding(bottom = heroLift.dp)) {
-                AtelierHero(
-                    brand = LookbookCopy.PRODUCT_NAME,
-                    headline = "Start try-on shoot",
-                    support = "Abaya, hijab, and shalwar on-device with Fast or Pro local try-on.",
-                    cta = LookbookCopy.ACTION_START_TRY_ON,
-                    onCta = onNewLook,
-                    statusLine = statusLine,
-                )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(VestraColors.Accent.copy(alpha = 0.15f))
+                            .border(1.dp, VestraColors.Accent.copy(alpha = 0.4f), RoundedCornerShape(50))
+                            .clickable(onClick = onOpenPacks)
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                    ) {
+                        Text(
+                            text = "Model Packs",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = VestraColors.Accent,
+                        )
+                    }
+                }
             }
+
             Spacer(Modifier.height(20.dp))
         }
 
-        if (!proReady) {
-            item(key = "pro-cta") {
-                GlassCard(onClick = onOpenPacks) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(VestraColors.GlassFillStrong)
-                                .border(1.dp, VestraColors.Accent.copy(alpha = 0.35f), RoundedCornerShape(14.dp)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                Icons.Outlined.Cloud,
-                                contentDescription = null,
-                                tint = VestraColors.Accent,
-                                modifier = Modifier.size(22.dp),
-                            )
-                        }
-                        Spacer(Modifier.width(14.dp))
-                        Column {
-                            Text("Install Pro pack", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "One download. Fully offline after. Free cloud try-on stays in Settings.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(22.dp))
-            }
-        }
-
-        item(key = "recent-header") {
+        // Section Title: AI Model Generators
+        item(key = "generators_label") {
             Row(
-                Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                GlassSectionLabel("RECENT LOOKS")
-                if (recent.isNotEmpty()) {
+                GlassSectionLabel("ISOLATED MODEL GENERATORS")
+                Text(
+                    text = "${generatorPills.size} Studios",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = VestraColors.InkMuted,
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+
+        // Distinct Button Pills for Each Model Generator
+        items(generatorPills, key = { it.id }) { pill ->
+            GeneratorPillCard(
+                pill = pill,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 5.dp),
+            )
+        }
+
+        // Section: Recent Creations / Library Quick Access
+        if (recentLooks.isNotEmpty()) {
+            item(key = "recent_header") {
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    GlassSectionLabel("RECENT CREATIONS")
                     Text(
-                        "Open gallery",
+                        "View all",
                         style = MaterialTheme.typography.labelMedium,
                         color = VestraColors.Accent,
                         modifier = Modifier
@@ -460,107 +552,318 @@ private fun TryOnPage(
                     )
                 }
             }
-        }
 
-        item(key = "recent") {
-            if (recent.isNotEmpty()) {
+            item(key = "recent_gallery") {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(recent.take(12), key = { it.id }) { entry ->
+                    items(recentLooks.take(8), key = { it.id }) { entry ->
                         val file = File(entry.imagePath)
                         Box(
                             Modifier
-                                .width(148.dp)
-                                .aspectRatio(0.72f)
-                                .clip(RoundedCornerShape(24.dp))
+                                .width(130.dp)
+                                .aspectRatio(0.75f)
+                                .clip(RoundedCornerShape(18.dp))
                                 .border(
                                     1.dp,
-                                    Brush.verticalGradient(
-                                        listOf(
-                                            VestraColors.GlassHighlight,
-                                            VestraColors.Accent.copy(alpha = 0.35f),
-                                        ),
-                                    ),
-                                    RoundedCornerShape(24.dp),
+                                    VestraColors.GlassBorder,
+                                    RoundedCornerShape(18.dp),
                                 )
-                                .combinedClickable(
-                                    onClick = onOpenWardrobe,
-                                    onLongClick = {
-                                        if (file.exists()) {
-                                            MediaExport.share(context, file, "Share look")
-                                        }
-                                    },
-                                ),
+                                .clickable { onSelectRecent(entry) },
                         ) {
-                            AsyncImage(
+                            ShimmerAsyncImage(
                                 model = file,
-                                contentDescription = "Recent look ${entry.personLabel}",
+                                contentDescription = entry.personLabel,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop,
+                                shape = RoundedCornerShape(18.dp),
                             )
                             Box(
                                 Modifier
                                     .align(Alignment.BottomCenter)
                                     .fillMaxWidth()
-                                    .height(52.dp)
+                                    .height(44.dp)
                                     .background(
                                         Brush.verticalGradient(
                                             listOf(
                                                 Color.Transparent,
-                                                VestraColors.AtelierCanvas.copy(alpha = 0.8f),
+                                                VestraColors.AtelierCanvas.copy(alpha = 0.85f),
                                             ),
                                         ),
                                     ),
                             )
                             Text(
-                                entry.personLabel.ifBlank { "Look" },
-                                style = MaterialTheme.typography.labelMedium,
+                                entry.personLabel.ifBlank { "Creation" },
+                                style = MaterialTheme.typography.labelSmall,
                                 color = VestraColors.Ivory,
                                 maxLines = 1,
                                 modifier = Modifier
                                     .align(Alignment.BottomStart)
-                                    .padding(start = 12.dp, end = 44.dp, bottom = 12.dp),
+                                    .padding(start = 10.dp, bottom = 10.dp),
                             )
-                            IconButton(
-                                onClick = {
-                                    if (file.exists()) {
-                                        MediaExport.share(context, file, LookbookCopy.ACTION_SHARE)
-                                    }
-                                },
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(4.dp)
-                                    .semantics {
-                                        contentDescription = LookbookCopy.ACTION_SHARE
-                                    },
-                            ) {
-                                Icon(
-                                    Icons.Outlined.Share,
-                                    contentDescription = null,
-                                    tint = VestraColors.Ivory,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
                         }
                     }
                 }
-            } else {
+            }
+        }
+    }
+}
+
+/**
+ * Visual Model Generator Pill Button Card
+ */
+@Composable
+private fun GeneratorPillCard(
+    pill: GeneratorPill,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1.0f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "pill_scale",
+    )
+
+    Surface(
+        modifier = modifier
+            .testTag("generator_pill_${pill.id}")
+            .scale(scale)
+            .clip(RoundedCornerShape(RadiusTokens.lg))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Button,
+                onClick = pill.onClick,
+            ),
+        shape = RoundedCornerShape(RadiusTokens.lg),
+        color = VestraColors.SurfaceRaised,
+        border = BorderStroke(
+            width = 1.dp,
+            brush = Brush.horizontalGradient(
+                listOf(
+                    pill.accentColor.copy(alpha = 0.45f),
+                    VestraColors.GlassBorder.copy(alpha = 0.3f),
+                ),
+            ),
+        ),
+        shadowElevation = 2.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f),
+            ) {
+                // Icon Bubble
                 Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(148.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(VestraColors.GlassFill)
-                        .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(24.dp))
-                        .clickable(onClick = onNewLook),
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(pill.accentColor.copy(alpha = 0.15f))
+                        .border(1.dp, pill.accentColor.copy(alpha = 0.4f), RoundedCornerShape(14.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
+                    Icon(
+                        imageVector = pill.icon,
+                        contentDescription = pill.title,
+                        tint = pill.accentColor,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+
+                Spacer(Modifier.width(14.dp))
+
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = pill.title,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                            ),
+                            color = VestraColors.Ink,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(pill.accentColor.copy(alpha = 0.12f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                        ) {
+                            Text(
+                                text = pill.badge,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                                color = pill.accentColor,
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(2.dp))
+
                     Text(
-                        "Tap to cast your first look",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = pill.subtitle,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = VestraColors.InkMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
+
+            // Chevron Forward Indicator
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(VestraColors.GlassFill),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                    contentDescription = "Open ${pill.title}",
+                    tint = pill.accentColor,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 3-Button Spatial Dock Navigation Bar (Home, Library, Settings)
+ */
+@Composable
+private fun ThreeButtonSpatialDock(
+    activeTab: MainDockTab,
+    onSelectTab: (MainDockTab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .clip(RoundedCornerShape(RadiusTokens.xl))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            VestraColors.AtelierContainer.copy(alpha = 0.94f),
+                            VestraColors.AtelierCanvas.copy(alpha = 0.98f),
+                        ),
+                    ),
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        listOf(
+                            VestraColors.AccentSoft.copy(alpha = 0.5f),
+                            VestraColors.GlassBorder.copy(alpha = 0.25f),
+                        ),
+                    ),
+                    shape = RoundedCornerShape(RadiusTokens.xl),
+                )
+                .padding(horizontal = 20.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                MainDockTab.entries.forEach { tab ->
+                    val isSelected = activeTab == tab
+                    DockPillItem(
+                        tab = tab,
+                        isSelected = isSelected,
+                        onClick = { onSelectTab(tab) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DockPillItem(
+    tab: MainDockTab,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else if (isSelected) 1.06f else 1.0f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "dock_item_scale",
+    )
+
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) VestraColors.Accent else VestraColors.IvoryMuted.copy(alpha = 0.65f),
+        label = "dock_content_color",
+    )
+
+    Column(
+        modifier = modifier
+            .testTag(tab.tag)
+            .scale(scale)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Tab,
+                onClick = onClick,
+            )
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = tab.icon,
+            contentDescription = tab.title,
+            tint = contentColor,
+            modifier = Modifier.size(22.dp),
+        )
+
+        Spacer(Modifier.height(2.dp))
+
+        Text(
+            text = tab.title,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 11.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            ),
+            color = contentColor,
+        )
+
+        // Animated Active Dot
+        AnimatedVisibility(
+            visible = isSelected,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .size(4.dp)
+                    .clip(CircleShape)
+                    .background(VestraColors.Accent),
+            )
         }
     }
 }

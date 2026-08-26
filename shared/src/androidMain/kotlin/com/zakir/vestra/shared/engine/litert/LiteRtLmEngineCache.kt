@@ -62,8 +62,21 @@ object LiteRtLmEngineCache {
         paths.forEach(onClose)
     }
 
-    /** Looks up (or cold-loads) the warm engine for [spec]. Does not touch inference depth. */
+    /** Looks up (or cold-loads) the warm engine for [spec]. Ensures strictly one model is loaded at a time. */
     private fun warmEngine(context: Context, spec: EngineSpec, tools: List<ToolSet>): LiteRtLmEngine {
+        // Enforce strict single model policy: evict any existing model that does not match this spec
+        if (!hasActiveInference()) {
+            engines.entries.filter { it.key != spec }.forEach { (oldSpec, oldEng) ->
+                android.util.Log.i("LookbookLiteRtLm", "Unloading previous model to enforce 1-model limit: ${oldSpec.modelPath}")
+                oldEng.closeNow()
+                engines.remove(oldSpec)
+                initLocks.remove(oldSpec)
+            }
+            // Evict ONNX models to prevent dual large models in memory
+            com.zakir.vestra.shared.engine.lite.OrtSessionCache.clearAll()
+            System.gc()
+        }
+
         val lock = initLocks.getOrPut(spec) { Any() }
         val engine = engines.getOrPut(spec) {
             LiteRtLmEngine(

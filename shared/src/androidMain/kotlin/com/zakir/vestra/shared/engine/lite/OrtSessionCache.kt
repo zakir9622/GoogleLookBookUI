@@ -24,17 +24,37 @@ object OrtSessionCache {
 
     fun hasActiveInference(): Boolean = inferenceDepth.get() > 0
 
-    fun open(modelPath: String): OrtModel =
-        cache.getOrPut(modelPath) {
+    fun open(modelPath: String): OrtModel {
+        if (!hasActiveInference()) {
+            cache.entries.filter { it.key != modelPath }.forEach { (key, model) ->
+                android.util.Log.i("OrtSessionCache", "Unloading previous ORT model to enforce 1-model limit: $key")
+                model.close()
+                cache.remove(key)
+            }
+            com.zakir.vestra.shared.engine.litert.LiteRtLmEngineCache.clearAll()
+            System.gc()
+        }
+        return cache.getOrPut(modelPath) {
             // Construction may throw IllegalStateException on bad graphs / native link errors.
             OrtModel(modelPath)
         }
+    }
 
     /** Multi-input Pro / local-image graphs — reused across denoise steps and generations. */
-    fun openGraph(modelPath: String): OrtGraph =
-        graphCache.getOrPut(modelPath) {
+    fun openGraph(modelPath: String): OrtGraph {
+        if (!hasActiveInference()) {
+            graphCache.entries.filter { it.key != modelPath }.forEach { (key, graph) ->
+                android.util.Log.i("OrtSessionCache", "Unloading previous ORT graph to enforce 1-model limit: $key")
+                graph.close()
+                graphCache.remove(key)
+            }
+            com.zakir.vestra.shared.engine.litert.LiteRtLmEngineCache.clearAll()
+            System.gc()
+        }
+        return graphCache.getOrPut(modelPath) {
             OrtGraph(modelPath)
         }
+    }
 
     fun invalidateContaining(packRoot: String) {
         if (hasActiveInference()) return

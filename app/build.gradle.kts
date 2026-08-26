@@ -19,7 +19,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["timeout_msec"] = "120000"
         buildConfigField("boolean", "APPLY_WATERMARK", "false")
-        buildConfigField("String", "DEFAULT_HF_TOKEN", "\"\"")
+        buildConfigField("String", "DEFAULT_HF_TOKEN", "\"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\"")
         buildConfigField("String", "DEFAULT_OPENROUTER_TOKEN", "\"\"")
         buildConfigField("String", "DEFAULT_GROQ_TOKEN", "\"\"")
     }
@@ -36,7 +36,7 @@ android {
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("debugConfig")
-            buildConfigField("String", "DEFAULT_HF_TOKEN", "\"\"")
+            buildConfigField("String", "DEFAULT_HF_TOKEN", "\"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\"")
             buildConfigField("String", "DEFAULT_OPENROUTER_TOKEN", "\"\"")
             buildConfigField("String", "DEFAULT_GROQ_TOKEN", "\"\"")
         }
@@ -47,7 +47,7 @@ android {
                 "proguard-rules.pro",
             )
             signingConfig = signingConfigs.getByName("debugConfig")
-            buildConfigField("String", "DEFAULT_HF_TOKEN", "\"\"")
+            buildConfigField("String", "DEFAULT_HF_TOKEN", "\"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\"")
             buildConfigField("String", "DEFAULT_OPENROUTER_TOKEN", "\"\"")
             buildConfigField("String", "DEFAULT_GROQ_TOKEN", "\"\"")
         }
@@ -81,6 +81,7 @@ kotlin {
 dependencies {
     implementation(project(":shared"))
 
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
 

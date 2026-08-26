@@ -47,11 +47,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.zakir.vestra.ui.components.ShimmerAsyncImage
 import com.zakir.vestra.shared.cloud.AiCapability
 import com.zakir.vestra.shared.cloud.CloudModelCatalog
 import com.zakir.vestra.shared.cloud.FreeCloudDiscovery
@@ -203,35 +205,26 @@ fun UnifiedStudioPane(
     }
 
     val moduleTitle = when (capability) {
-        AiCapability.IMAGE_GEN -> "IMAGE GENERATION MODULE"
-        AiCapability.VIDEO -> "VIDEO GENERATION MODULE"
-        AiCapability.CODE -> "CODE GENERATION MODULE"
-        AiCapability.AUDIO -> "AUDIO STUDIO MODULE"
-        else -> "GENERATION MODULE"
+        AiCapability.IMAGE_GEN -> "IMAGE GENERATOR"
+        AiCapability.VIDEO -> "VIDEO GENERATOR"
+        AiCapability.CODE -> "CODE GENERATOR"
+        AiCapability.AUDIO -> "AUDIO GENERATOR"
+        else -> "AI GENERATOR"
     }
 
     val moduleDescription = when (capability) {
         AiCapability.IMAGE_GEN ->
-            if (cloudModelsEnabled) {
-                "Renders high-definition modest couture lookbooks and fashion photography with on-device tiny-SD or ultra-speed cloud diffusion models."
-            } else {
-                "Renders high-definition modest couture lookbooks and fashion photography with on-device tiny-SD diffusion models."
-            }
+            if (cloudModelsEnabled) "Modest couture lookbooks with tiny-SD and cloud diffusion."
+            else "Modest couture lookbooks with on-device tiny-SD diffusion."
         AiCapability.VIDEO ->
-            if (cloudModelsEnabled) {
-                "Generates motion sequences and still-clip runway transitions using AI video pipelines."
-            } else {
-                "Generates motion sequences and still-clip runway transitions using local on-device video pipelines."
-            }
+            if (cloudModelsEnabled) "Motion sequences and runway clips via AI video pipelines."
+            else "Motion sequences and runway clips with local video pipelines."
         AiCapability.CODE ->
-            if (cloudModelsEnabled) {
-                "Synthesizes production Kotlin Compose UI code and architectural refactors with on-device Gemma or cloud reasoning LLMs."
-            } else {
-                "Synthesizes production Kotlin Compose UI code and architectural refactors with on-device Gemma LLMs."
-            }
+            if (cloudModelsEnabled) "Kotlin Compose UI and architecture with on-device & cloud LLMs."
+            else "Kotlin Compose UI and architecture with on-device Gemma LLMs."
         AiCapability.AUDIO ->
-            "Generates speech waveforms and applies real-time DSP voice transformations."
-        else -> "Interactive generative AI atelier studio."
+            "Speech synthesis and real-time DSP voice transformations."
+        else -> "Generative AI studio."
     }
 
     val modelDisplayLabel = when {
@@ -326,12 +319,52 @@ fun UnifiedStudioPane(
         }
     }
 
+    val feedItems by viewModel.feedItems.collectAsState()
+
+    // Auto-scroll to bottom of conversational canvas on new turns or deliverables
+    LaunchedEffect(feedItems.size, (state as? GenerativeState.Running)?.stage, (state as? GenerativeState.ImageReady)?.path, (state as? GenerativeState.VideoReady)?.path) {
+        if (feedItems.isNotEmpty()) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(VestraColors.Canvas),
     ) {
-        // Scrollable Middle Generation Canvas
+        // Top Minimal Session Action Bar (only when history exists)
+        if (feedItems.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "${subtitle(capability).uppercase()} FEED · ${feedItems.size} ${if (feedItems.size == 1) "turn" else "turns"}",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                    ),
+                    color = VestraColors.InkMuted,
+                )
+                Text(
+                    text = "Clear history",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = VestraColors.Accent,
+                    ),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { viewModel.clearFeed() }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
+        }
+
+        // Scrollable Middle Generation & Deliverables Canvas
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -339,140 +372,7 @@ fun UnifiedStudioPane(
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 6.dp),
         ) {
-            // TOP SECTION MODULE: Module Header & Initialized Model Status Card
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(VestraColors.SurfaceRaised)
-                    .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(18.dp))
-                    .padding(14.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(VestraColors.Accent),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = moduleTitle,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.2.sp,
-                            ),
-                            color = VestraColors.Ink,
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(VestraColors.GlassFill)
-                            .border(1.dp, VestraColors.Accent.copy(alpha = 0.5f), RoundedCornerShape(50))
-                            .clickable { showModelPicker = true }
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                    ) {
-                        Text(
-                            text = modelDisplayLabel,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                            color = VestraColors.Accent,
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = moduleDescription,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = VestraColors.InkMuted,
-                )
-
-                // Model Initialization & Warmup Status
-                Spacer(Modifier.height(8.dp))
-                when (val w = warmup) {
-                    is GenerativeViewModel.Warmup.Loading -> {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(VestraColors.GlassFill)
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
-                                strokeWidth = 2.dp,
-                                color = VestraColors.Accent,
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = "Initializing ${w.label} weights…",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = VestraColors.Ink,
-                            )
-                        }
-                    }
-                    is GenerativeViewModel.Warmup.Ready -> {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(VestraColors.GlassFill)
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                        ) {
-                            Icon(
-                                Icons.Outlined.CheckCircle,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = VestraColors.Accent,
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = "${w.label} initialized & ready",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = VestraColors.Ink,
-                            )
-                        }
-                    }
-                    is GenerativeViewModel.Warmup.Failed -> {
-                        GlassErrorBanner(
-                            message = "${w.label} load issue: ${w.reason}",
-                            onRetry = { viewModel.warmUpLocal(effectiveCapability) },
-                            retryLabel = "Retry load",
-                            onDismiss = null,
-                        )
-                    }
-                    GenerativeViewModel.Warmup.Idle -> {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text(
-                                estimate,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                color = VestraColors.InkMuted,
-                            )
-                            if (preflightChip != null && preflight == null) {
-                                GlassPill(text = preflightChip, active = true)
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            // Preflight error banner
+            // Preflight error banner if API key or model download required
             if (preflight != null) {
                 GlassErrorBanner(
                     message = preflight!!,
@@ -483,16 +383,13 @@ fun UnifiedStudioPane(
                 Spacer(Modifier.height(10.dp))
             }
 
-            // MIDDLE GENERATION SECTION: Protractored Message & Artifact Canvas
-            val hasResult = (viewModel.resultBelongsTo(effectiveCapability) || viewModel.resultBelongsTo(capability)) && state != null
-
-            if (!hasResult && !busy) {
-                // Empty state with quick starter prompts
+            if (feedItems.isEmpty() && state == null && !busy) {
+                // Empty state with clean curated prompt starters
                 if (examples.isNotEmpty()) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 12.dp),
+                            .padding(vertical = 14.dp),
                     ) {
                         Text(
                             "CURATED PROMPT STARTERS",
@@ -511,32 +408,108 @@ fun UnifiedStudioPane(
                     }
                 }
             } else {
-                // Active / Finished Generation Deliverable Stream
+                // Conversational Stream of Generations & Outputs
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    val failedMsg = (state as? GenerativeState.Failed)?.message.orEmpty()
-                    val quotaOrCredits = failedMsg.contains("ZeroGPU", ignoreCase = true) ||
-                        failedMsg.contains("monthly credits", ignoreCase = true) ||
-                        failedMsg.contains("Inference Providers", ignoreCase = true)
+                    feedItems.forEach { feedItem ->
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            // User Message Bubble (Prompt + Reference Thumbnail)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.92f)
+                                        .clip(
+                                            RoundedCornerShape(
+                                                topStart = 18.dp,
+                                                topEnd = 4.dp,
+                                                bottomStart = 18.dp,
+                                                bottomEnd = 18.dp,
+                                            ),
+                                        )
+                                        .background(VestraColors.SurfaceRaised)
+                                        .border(
+                                            1.dp,
+                                            VestraColors.Accent.copy(alpha = 0.35f),
+                                            RoundedCornerShape(
+                                                topStart = 18.dp,
+                                                topEnd = 4.dp,
+                                                bottomStart = 18.dp,
+                                                bottomEnd = 18.dp,
+                                            ),
+                                        )
+                                        .padding(12.dp),
+                                ) {
+                                    // Attached reference image preview
+                                    feedItem.referenceUri?.let { uri ->
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(bottom = 8.dp)
+                                                .size(width = 120.dp, height = 120.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .border(1.dp, VestraColors.Accent.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
+                                        ) {
+                                            ShimmerAsyncImage(
+                                                model = uri,
+                                                contentDescription = "Reference image",
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop,
+                                                shape = RoundedCornerShape(12.dp),
+                                            )
+                                        }
+                                    }
 
-                    ResultPane(
-                        state = state,
-                        liveLog = emptyList(), // Live logs rendered in persistent bottom dock
-                        generationStartedAtMs = generationStartedAtMs,
-                        onCancel = { viewModel.forceStop() },
-                        onRetry = {
-                            viewModel.clearResult()
-                            if (quotaOrCredits) {
-                                showModelPicker = true
-                            } else {
-                                onGenerate()
+                                    Text(
+                                        text = feedItem.prompt.ifBlank { "Generate look" },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = VestraColors.Ink,
+                                    )
+
+                                    Spacer(Modifier.height(6.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        feedItem.modelLabel?.let { label ->
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                color = VestraColors.Accent,
+                                            )
+                                        }
+                                        Text(
+                                            text = formatFeedTime(feedItem.timestampMs),
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                            color = VestraColors.InkMuted,
+                                        )
+                                    }
+                                }
                             }
-                        },
-                        retryLabel = if (quotaOrCredits) "Choose model" else LookbookCopy.ACTION_RETRY,
-                        onDismiss = viewModel::clearResult,
-                    )
+
+                            // AI Output / Deliverable Pane for this turn
+                            ResultPane(
+                                state = feedItem.state,
+                                liveLog = emptyList(), // Live console rendered in floating composer
+                                generationStartedAtMs = feedItem.generationStartedAtMs,
+                                onCancel = { viewModel.forceStop() },
+                                onRetry = {
+                                    viewModel.setPrompt(feedItem.prompt)
+                                    viewModel.setReference(feedItem.referenceUri)
+                                    onGenerate()
+                                },
+                                retryLabel = LookbookCopy.ACTION_RETRY,
+                                onDismiss = { viewModel.removeFeedItem(feedItem.id) },
+                            )
+                        }
+                    }
                 }
             }
 
@@ -566,6 +539,7 @@ fun UnifiedStudioPane(
             showLiveDock = true,
             quickPrompts = quickPromptItems,
             onSelectQuickPrompt = viewModel::setPrompt,
+            modelLoading = warmup is GenerativeViewModel.Warmup.Loading,
             assistToggles = {
                 AdvancedAssistRow(
                     capability = capability,
@@ -660,4 +634,10 @@ private fun AdvancedAssistRow(
         }
         else -> Unit
     }
+}
+
+private fun formatFeedTime(epochMs: Long): String {
+    val date = java.util.Date(epochMs)
+    val format = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+    return format.format(date)
 }

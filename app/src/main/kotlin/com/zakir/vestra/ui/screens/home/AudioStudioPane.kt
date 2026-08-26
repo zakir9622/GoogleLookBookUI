@@ -122,6 +122,7 @@ fun AudioStudioPane(
     val knobs by viewModel.voiceKnobs.collectAsState()
     val reference by viewModel.referenceUri.collectAsState()
     val audioId by viewModel.appSettings.audioProviderId.collectAsState()
+    val warmup by viewModel.warmup.collectAsState()
     val packStates by packManager?.states?.collectAsState()
         ?: remember { mutableStateOf(emptyMap()) }
 
@@ -249,13 +250,52 @@ fun AudioStudioPane(
 
     val modelDisplayLabel = if (!cloudModelsEnabled || localAudioReady) "Device TTS (offline)" else provider.displayName
     val scrollState = rememberScrollState()
+    val feedItems by viewModel.feedItems.collectAsState()
+
+    // Auto-scroll to bottom on new audio generations
+    LaunchedEffect(feedItems.size, (state as? GenerativeState.Running)?.stage, (state as? GenerativeState.AudioReady)?.path) {
+        if (feedItems.isNotEmpty()) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(VestraColors.Canvas),
     ) {
-        // Scrollable Middle Canvas
+        // Top Minimal Session Action Bar (only when history exists)
+        if (feedItems.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "AUDIO FEED · ${feedItems.size} ${if (feedItems.size == 1) "turn" else "turns"}",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                    ),
+                    color = VestraColors.InkMuted,
+                )
+                Text(
+                    text = "Clear history",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = VestraColors.Accent,
+                    ),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { viewModel.clearFeed() }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
+        }
+
+        // Scrollable Middle Generation Canvas
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -263,89 +303,6 @@ fun AudioStudioPane(
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 6.dp),
         ) {
-            // TOP SECTION MODULE: Header & Model Initialization Card
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(VestraColors.SurfaceRaised)
-                    .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(18.dp))
-                    .padding(14.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(VestraColors.Accent),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "AUDIO STUDIO MODULE",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.2.sp,
-                            ),
-                            color = VestraColors.Ink,
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(VestraColors.GlassFill)
-                            .border(1.dp, VestraColors.Accent.copy(alpha = 0.5f), RoundedCornerShape(50))
-                            .clickable { showModelPicker = true }
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                    ) {
-                        Text(
-                            text = modelDisplayLabel,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                            color = VestraColors.Accent,
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "Generates studio narration and speech waveforms with local DSP pitch/formant shifting and offline device TTS.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = VestraColors.InkMuted,
-                )
-
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(VestraColors.GlassFill)
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                ) {
-                    Icon(
-                        Icons.Outlined.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = VestraColors.Accent,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "$modelDisplayLabel · initialized & ready",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = VestraColors.Ink,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
             if (preflight != null) {
                 GlassErrorBanner(
                     message = preflight!!,
@@ -642,10 +599,119 @@ fun AudioStudioPane(
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(14.dp))
 
-            // Generation Result Deliverable Stream
-            if (viewModel.resultBelongsTo(AiCapability.AUDIO) && state != null) {
+            // Conversational Audio Stream Deliverables
+            if (feedItems.isNotEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    feedItems.forEach { feedItem ->
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            // User Message Bubble (Prompt or Voice Transform)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.92f)
+                                        .clip(
+                                            RoundedCornerShape(
+                                                topStart = 18.dp,
+                                                topEnd = 4.dp,
+                                                bottomStart = 18.dp,
+                                                bottomEnd = 18.dp,
+                                            ),
+                                        )
+                                        .background(VestraColors.SurfaceRaised)
+                                        .border(
+                                            1.dp,
+                                            VestraColors.Accent.copy(alpha = 0.35f),
+                                            RoundedCornerShape(
+                                                topStart = 18.dp,
+                                                topEnd = 4.dp,
+                                                bottomStart = 18.dp,
+                                                bottomEnd = 18.dp,
+                                            ),
+                                        )
+                                        .padding(12.dp),
+                                ) {
+                                    feedItem.referenceUri?.let { uri ->
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(bottom = 6.dp),
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.GraphicEq,
+                                                contentDescription = null,
+                                                tint = VestraColors.Accent,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(
+                                                text = File(uri).name,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = VestraColors.Accent,
+                                            )
+                                        }
+                                    }
+
+                                    Text(
+                                        text = feedItem.prompt.ifBlank { "Generate voice" },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = VestraColors.Ink,
+                                    )
+
+                                    Spacer(Modifier.height(6.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        feedItem.modelLabel?.let { label ->
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                color = VestraColors.Accent,
+                                            )
+                                        }
+                                        Text(
+                                            text = formatAudioFeedTime(feedItem.timestampMs),
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                            color = VestraColors.InkMuted,
+                                        )
+                                    }
+                                }
+                            }
+
+                            // AI Audio Deliverable Pane for this turn
+                            ResultPane(
+                                state = feedItem.state,
+                                liveLog = emptyList(),
+                                generationStartedAtMs = feedItem.generationStartedAtMs,
+                                onRetry = {
+                                    if (feedItem.referenceUri != null && feedItem.prompt.equals("voice-change", true)) {
+                                        viewModel.setReference(feedItem.referenceUri)
+                                        viewModel.applyVoiceChange()
+                                    } else {
+                                        viewModel.setPrompt(feedItem.prompt)
+                                        viewModel.generateAudio()
+                                    }
+                                },
+                                onDismiss = { viewModel.removeFeedItem(feedItem.id) },
+                                onCancel = { viewModel.forceStop() },
+                                retryLabel = "Speak again",
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+            } else if (viewModel.resultBelongsTo(AiCapability.AUDIO) && state != null) {
                 ResultPane(
                     state = state,
                     liveLog = emptyList(), // Live logs rendered in persistent bottom dock
@@ -732,6 +798,7 @@ fun AudioStudioPane(
             showLiveDock = true,
             quickPrompts = audioQuickPrompts,
             onSelectQuickPrompt = viewModel::setPrompt,
+            modelLoading = warmup is GenerativeViewModel.Warmup.Loading,
         )
     }
 
@@ -776,3 +843,10 @@ private fun KnobSlider(
         )
     }
 }
+
+private fun formatAudioFeedTime(epochMs: Long): String {
+    val date = java.util.Date(epochMs)
+    val format = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+    return format.format(date)
+}
+

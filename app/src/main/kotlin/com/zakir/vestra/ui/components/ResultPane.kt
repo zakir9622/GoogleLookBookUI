@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.zakir.vestra.ui.components.ShimmerAsyncImage
 import com.zakir.vestra.data.LocalReportStore
 import com.zakir.vestra.data.ReportReason
 import com.zakir.vestra.media.MediaExport
@@ -137,7 +138,7 @@ fun ResultPane(
                 GlassPill(text = "In looks gallery", active = true, accent = VestraColors.Accent)
             }
             Spacer(Modifier.height(8.dp))
-            AsyncImage(
+            ShimmerAsyncImage(
                 model = File(state.path),
                 contentDescription = "Generated look",
                 modifier = Modifier.fillMaxWidth().height(320.dp),

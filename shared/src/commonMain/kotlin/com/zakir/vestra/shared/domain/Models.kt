@@ -86,6 +86,12 @@ data class TryOnRequest(
     val backdrop: Backdrop = Backdrop.STUDIO_WHITE,
     val seed: Long? = null,
     val casting: CastingProfile = CastingProfile(),
+    val customSteps: Int? = null,
+    val customCfg: Double? = null,
+    val customGarmentDesc: String? = null,
+    val autoCrop: Boolean = false,
+    val autoMask: Boolean = true,
+    val clothType: String? = null,
 )
 
 /**
