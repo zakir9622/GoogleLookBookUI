@@ -195,6 +195,9 @@ fun UnifiedStudioPane(
                 detail = entry.testingNote,
                 ready = LocalModelCatalog.studioEntryReady(entry, packReady),
                 statusLabel = LocalModelCatalog.studioStatusLabel(entry, packReady),
+                sizeLabel = entry.approxSizeLabel,
+                license = entry.license,
+                offlineAfterInstall = entry.offlineAfterInstall,
             )
         }
     }
