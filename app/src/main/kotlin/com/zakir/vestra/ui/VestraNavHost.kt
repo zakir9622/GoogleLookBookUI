@@ -641,6 +641,10 @@ fun VestraNavHost(
                     tryOnViewModel.resetSession()
                     navController.navigate(Routes.GARMENT)
                 },
+                onReusePrompt = { savedPrompt ->
+                    generativeViewModel.setPrompt(savedPrompt)
+                    navController.navigate(Routes.STUDIO_IMAGE) { launchSingleTop = true }
+                },
             )
         }
         composable(
@@ -653,6 +657,10 @@ fun VestraNavHost(
                 onStartTryOn = {
                     tryOnViewModel.resetSession()
                     navController.navigate(Routes.GARMENT)
+                },
+                onReusePrompt = { savedPrompt ->
+                    generativeViewModel.setPrompt(savedPrompt)
+                    navController.navigate(Routes.STUDIO_IMAGE) { launchSingleTop = true }
                 },
             )
         }
