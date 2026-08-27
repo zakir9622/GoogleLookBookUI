@@ -17,9 +17,12 @@ object AudioImportHelper {
     suspend fun copyUriToCache(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
         runCatching {
             val contentResolver = context.contentResolver
-            val displayName = queryFileName(context, uri) ?: "imported_audio_${System.currentTimeMillis()}.wav"
+            val rawDisplayName = queryFileName(context, uri) ?: "imported_audio_${System.currentTimeMillis()}.wav"
+            val safeName = rawDisplayName.substringAfterLast('/').substringAfterLast('\\')
+                .replace(Regex("[^a-zA-Z0-9._-]"), "_")
+                .ifBlank { "imported_audio_${System.currentTimeMillis()}.wav" }
             val targetDir = File(context.cacheDir, "audio_recordings").also { it.mkdirs() }
-            val targetFile = File(targetDir, displayName)
+            val targetFile = File(targetDir, safeName)
 
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(targetFile).use { output ->

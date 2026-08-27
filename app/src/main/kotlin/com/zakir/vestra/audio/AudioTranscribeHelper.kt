@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 sealed class TranscribeState {
     object Idle : TranscribeState()
-    data class Listening(val volumeRms: Float = 0f) : TranscribeState()
+    data class Listening(val volumeRms: Float = 0f, val partialText: String = "") : TranscribeState()
     data class Processing(val progressHint: String) : TranscribeState()
     data class Success(
         val text: String,
@@ -61,15 +61,18 @@ class AudioTranscribeHelper(private val context: Context) {
             }
 
             override fun onRmsChanged(rmsdB: Float) {
-                if (_state.value is TranscribeState.Listening) {
-                    _state.value = TranscribeState.Listening(volumeRms = rmsdB.coerceIn(0f, 10f))
+                val current = _state.value
+                if (current is TranscribeState.Listening) {
+                    _state.value = current.copy(volumeRms = rmsdB.coerceIn(0f, 10f))
                 }
             }
 
             override fun onBufferReceived(buffer: ByteArray?) {}
 
             override fun onEndOfSpeech() {
-                _state.value = TranscribeState.Processing("Generating transcript…")
+                val current = _state.value
+                val partial = if (current is TranscribeState.Listening) current.partialText else ""
+                _state.value = TranscribeState.Processing(if (partial.isNotBlank()) "Finalizing transcript: \"$partial\"…" else "Generating transcript…")
             }
 
             override fun onError(error: Int) {
@@ -108,13 +111,12 @@ class AudioTranscribeHelper(private val context: Context) {
                 val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val text = matches?.firstOrNull()?.trim() ?: return
                 if (text.isNotBlank()) {
-                    val words = text.split(Regex("\\s+")).filter { it.isNotBlank() }.size
-                    _state.value = TranscribeState.Success(
-                        text = text,
-                        wordCount = words,
-                        durationMs = null,
-                        audioFile = null,
-                    )
+                    val current = _state.value
+                    if (current is TranscribeState.Listening) {
+                        _state.value = current.copy(partialText = text)
+                    } else {
+                        _state.value = TranscribeState.Listening(partialText = text)
+                    }
                 }
             }
 

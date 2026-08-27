@@ -50,13 +50,17 @@ data class PcmAudioTrack(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is PcmAudioTrack) return false
-        return channels == other.channels && sampleRate == other.sampleRate && durationMs == other.durationMs
+        if (channels != other.channels) return false
+        if (sampleRate != other.sampleRate) return false
+        if (durationMs != other.durationMs) return false
+        return samples.contentEquals(other.samples)
     }
 
     override fun hashCode(): Int {
         var result = channels
         result = 31 * result + sampleRate
         result = 31 * result + durationMs.hashCode()
+        result = 31 * result + samples.contentHashCode()
         return result
     }
 }

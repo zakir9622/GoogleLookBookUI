@@ -105,6 +105,10 @@ import com.zakir.vestra.shared.audio.VoiceCategory
 import com.zakir.vestra.shared.audio.VoiceCatalog
 import com.zakir.vestra.shared.audio.VoiceEffectPreset
 import com.zakir.vestra.shared.audio.VoicePresets
+import com.zakir.vestra.shared.audio.VoiceSampleManager
+import com.zakir.vestra.shared.audio.VoiceSampleConfig
+import com.zakir.vestra.shared.audio.VoiceSampleCaptureState
+import com.zakir.vestra.shared.audio.VoiceSampleResult
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Delete
@@ -201,6 +205,15 @@ fun AudioStudioPane(
 
     // Vocal Remover State
     var vocalMode by remember { mutableStateOf(VocalMode.KARAOKE_INSTRUMENTAL) }
+
+    // Voice Sample Manager for Raw PCM Voice Cloning
+    val voiceSampleManager = remember {
+        VoiceSampleManager(File(context.filesDir, "voice_samples"))
+    }
+    val sampleCaptureState by voiceSampleManager.state.collectAsState()
+    val isSampleRecording by voiceSampleManager.isRecording.collectAsState()
+    val sampleAmplitude by voiceSampleManager.amplitudeFlow.collectAsState()
+    var sampleQualityReport by remember { mutableStateOf<com.zakir.vestra.shared.audio.VoiceSampleQualityReport?>(null) }
 
     // Custom Voices State
     var customVoices by remember { mutableStateOf(CustomVoiceStorage.loadProfiles(context.filesDir)) }
@@ -1483,21 +1496,35 @@ fun AudioStudioPane(
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(VestraColors.Accent.copy(alpha = 0.12f))
+                                        .border(1.dp, VestraColors.Accent.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                                         .padding(16.dp),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(18.dp),
-                                            color = VestraColors.Accent,
-                                            strokeWidth = 2.dp,
-                                        )
-                                        Spacer(Modifier.width(10.dp))
-                                        Text(
-                                            "Listening to voice… speak clearly",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = VestraColors.Accent,
-                                        )
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(18.dp),
+                                                color = VestraColors.Accent,
+                                                strokeWidth = 2.dp,
+                                            )
+                                            Spacer(Modifier.width(10.dp))
+                                            Text(
+                                                "Listening to voice… speak clearly",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                                color = VestraColors.Accent,
+                                            )
+                                        }
+                                        if (trState.partialText.isNotBlank()) {
+                                            Text(
+                                                "“${trState.partialText}”",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
+                                                color = VestraColors.Ink,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1866,13 +1893,102 @@ fun AudioStudioPane(
 
                     Spacer(Modifier.height(14.dp))
 
-                    // Step 2: Sample selection
+                    // Step 2: Sample selection & Capture
                     Text(
                         "VOICE SAMPLE SOURCE",
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
                         color = VestraColors.Accent,
                     )
                     Spacer(Modifier.height(6.dp))
+
+                    // Dedicated Raw PCM AudioRecord Sample Capture Button
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isSampleRecording) VestraColors.Danger.copy(alpha = 0.15f) else VestraColors.Canvas)
+                            .border(
+                                1.dp,
+                                if (isSampleRecording) VestraColors.Danger else VestraColors.Accent.copy(alpha = 0.5f),
+                                RoundedCornerShape(12.dp),
+                            )
+                            .clickable {
+                                val hasAudioPermission = ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.RECORD_AUDIO,
+                                ) == PackageManager.PERMISSION_GRANTED
+
+                                if (!hasAudioPermission) {
+                                    Toast.makeText(context, "Please grant microphone permission to record sample", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    if (isSampleRecording) {
+                                        val res = voiceSampleManager.stopRecording()
+                                        if (res is VoiceSampleResult.Success) {
+                                            val wavFile = File(res.sample.wavPath)
+                                            customSampleFile = wavFile
+                                            sampleQualityReport = res.sample.quality
+                                            analyzeAndSetSample(wavFile)
+                                        } else if (res is VoiceSampleResult.Error) {
+                                            Toast.makeText(context, res.message, Toast.LENGTH_SHORT).show()
+                                        }
+                                    } else {
+                                        sampleQualityReport = null
+                                        voiceSampleManager.startRecording(
+                                            name = customSampleName.ifBlank { "Voice Sample" },
+                                            config = VoiceSampleConfig(sampleRate = 44100),
+                                        )
+                                    }
+                                }
+                            }
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    if (isSampleRecording) Icons.Outlined.Stop else Icons.Filled.Mic,
+                                    contentDescription = null,
+                                    tint = if (isSampleRecording) VestraColors.Danger else VestraColors.Accent,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    if (isSampleRecording) "Stop & Analyze Raw PCM Sample" else "Record Live Sample (AudioRecord PCM)",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = if (isSampleRecording) VestraColors.Danger else VestraColors.Ink,
+                                )
+                            }
+                            if (isSampleRecording) {
+                                Spacer(Modifier.height(6.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center,
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.8f)
+                                            .height(6.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(VestraColors.SurfaceRaised),
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(sampleAmplitude.coerceIn(0.05f, 1f))
+                                                .height(6.dp)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(VestraColors.Accent),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1947,6 +2063,7 @@ fun AudioStudioPane(
                         }
                     } else if (analyzedCustomProfile != null) {
                         val prof = analyzedCustomProfile!!
+                        val report = sampleQualityReport
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1973,7 +2090,7 @@ fun AudioStudioPane(
                                 }
                                 Spacer(Modifier.height(6.dp))
                                 Text(
-                                    "• Formant Resonance: ${(prof.formantScale * 100).toInt()}% tract scale\n• Warmth: ${(prof.warmth * 100).toInt()}% · Clarity: ${(prof.clarity * 100).toInt()}%\n• Micro-Tremor: ${if (prof.tremorDepth > 0) "%.1f Hz (Senescent)".format(prof.tremorRateHz) else "Smooth Vocal"}",
+                                    "• Formant Resonance: ${(prof.formantScale * 100).toInt()}% tract scale\n• Warmth: ${(prof.warmth * 100).toInt()}% · Clarity: ${(prof.clarity * 100).toInt()}%\n• Micro-Tremor: ${if (prof.tremorDepth > 0) "%.1f Hz (Senescent)".format(prof.tremorRateHz) else "Smooth Vocal"}${if (report != null) "\n• SNR Quality: ${report.snrEstimateDb.toInt()} dB (Peak ${report.peakDbFs.toInt()} dBFS)" else ""}",
                                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                     color = VestraColors.Ink,
                                 )
