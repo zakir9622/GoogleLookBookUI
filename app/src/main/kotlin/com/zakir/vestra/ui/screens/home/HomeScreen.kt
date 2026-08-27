@@ -232,7 +232,7 @@ fun HomeScreen(
             GeneratorPill(
                 id = "tryon",
                 title = "Fit a look",
-                subtitle = "Place garments on a person with private, photoreal try-on",
+                subtitle = "Preview garments on a person with private, photoreal try-on",
                 badge = "VISION",
                 icon = Icons.Outlined.AutoAwesome,
                 accentColor = VestraColors.Accent,
@@ -240,8 +240,8 @@ fun HomeScreen(
             ),
             GeneratorPill(
                 id = "image",
-                title = "Generate an image",
-                subtitle = "Turn a sentence into a cinematic visual direction",
+                title = "Make an image",
+                subtitle = "Turn an idea into a visual direction, then keep refining",
                 badge = "IMAGE",
                 icon = Icons.Outlined.Image,
                 accentColor = VestraColors.ModalityImage,
@@ -249,8 +249,8 @@ fun HomeScreen(
             ),
             GeneratorPill(
                 id = "video",
-                title = "Bring it to life",
-                subtitle = "Create movement, camera language, and atmosphere",
+                title = "Animate an idea",
+                subtitle = "Shape movement, camera language, and atmosphere",
                 badge = "VIDEO",
                 icon = Icons.Outlined.Videocam,
                 accentColor = VestraColors.ModalityVideo,
@@ -259,7 +259,7 @@ fun HomeScreen(
             GeneratorPill(
                 id = "code",
                 title = "Build with AI",
-                subtitle = "Turn product ideas into focused code and UI concepts",
+                subtitle = "Turn product ideas into focused code and interface concepts",
                 badge = "LOCAL",
                 icon = Icons.Outlined.Code,
                 accentColor = VestraColors.ModalityCode,
@@ -267,8 +267,8 @@ fun HomeScreen(
             ),
             GeneratorPill(
                 id = "audio",
-                title = "Find the sound",
-                subtitle = "Shape voice, mood, and texture with on-device tools",
+                title = "Shape the sound",
+                subtitle = "Direct voice, mood, and texture with on-device tools",
                 badge = "AUDIO",
                 icon = Icons.Outlined.GraphicEq,
                 accentColor = VestraColors.ModalityAudio,
@@ -277,7 +277,7 @@ fun HomeScreen(
             GeneratorPill(
                 id = "news",
                 title = "Explore signals",
-                subtitle = "Read the moment with curated trends and AI reasoning",
+                subtitle = "Find creative references, trends, and useful AI context",
                 badge = "SIGNALS",
                 icon = Icons.Outlined.Newspaper,
                 accentColor = VestraColors.AccentSoft,
@@ -470,7 +470,7 @@ private fun HomeDashboardContent(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = "CREATIVE RUNTIME",
+                                text = "AI RUNTIME",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.1.sp,
@@ -514,7 +514,7 @@ private fun HomeDashboardContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                text = "Start with a direction",
+                text = "Choose a creation path",
                 style = MaterialTheme.typography.titleLarge,
                 color = VestraColors.Ink,
                 modifier = Modifier.padding(bottom = 6.dp),
@@ -547,9 +547,9 @@ private fun HomeDashboardContent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    GlassSectionLabel("YOUR LATEST WORK")
+                    GlassSectionLabel("RECENT CREATIONS")
                     Text(
-                        "Open library",
+                        "View library",
                         style = MaterialTheme.typography.labelMedium,
                         color = VestraColors.Accent,
                         modifier = Modifier
