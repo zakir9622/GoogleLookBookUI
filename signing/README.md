@@ -1,25 +1,22 @@
-# Sideload signing
+# APK signing
 
-`lookbook-sideload.keystore` is the **stable public signing key** for GitHub Release /
-CI sideload APKs (`com.zakir.vestra`).
+## Stable releases
 
-Android only allows in-place updates when the new APK is signed with the **same**
-certificate. Older Lookbook releases regenerated a random keystore on every CI
-run, which forced uninstall + “App not installed” / Play Protect re-verify loops.
+Stable GitHub Releases preserve update compatibility by using the existing sideload certificate stored in GitHub Actions Secrets. Configure these repository secrets before pushing a stable `vX.Y.Z` tag:
 
-## Credentials (intentionally public — sideload only)
+| Secret | Purpose |
+|---|---|
+| `KEYSTORE_BASE64` | Base64-encoded preserved sideload keystore |
+| `KEYSTORE_PASSWORD` | Keystore password |
+| `KEY_ALIAS` | Preserved signing alias |
+| `KEY_PASSWORD` | Signing-key password |
 
-| Field | Value |
-|-------|--------|
-| Store password | `lookbook-sideload` |
-| Key password | `lookbook-sideload` |
-| Alias | `lookbook` |
-| SHA-256 | `2F:60:3A:F1:E3:BE:46:C4:27:73:DF:44:6C:49:0D:3A:B5:B0:E1:F7:55:3B:8D:86:F9:FF:1B:E0:23:CD:9D:D3` |
+The release workflow fails closed when these secrets are absent. The keystore and credentials must never be committed to the public repository.
 
-Do **not** use this keystore for Play Store uploads — use a private upload key.
+## Test prereleases
 
-## One-time migration
+Tags containing `-test.` or `-test-` generate a disposable runner-local keystore. These APKs are intentionally not update-compatible with previous builds; uninstall the previous app before installing a new test prerelease.
 
-If you installed an APK from before **v3.0.16**, uninstall once, then install
-`the-lookbook-v3.0.16.apk` (or newer). After that, later versions update in place
-without uninstall.
+## Play Store
+
+Do not use the sideload certificate for Google Play uploads. Use a separate private Play App Signing/upload-key setup.

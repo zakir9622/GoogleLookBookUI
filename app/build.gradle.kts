@@ -4,8 +4,6 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
-import java.util.Properties
-
 android {
     namespace = "com.zakir.vestra"
     compileSdk = 36
@@ -19,9 +17,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["timeout_msec"] = "120000"
         buildConfigField("boolean", "APPLY_WATERMARK", "false")
-        buildConfigField("String", "DEFAULT_HF_TOKEN", "\"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\"")
-        buildConfigField("String", "DEFAULT_OPENROUTER_TOKEN", "\"\"")
-        buildConfigField("String", "DEFAULT_GROQ_TOKEN", "\"\"")
     }
 
     signingConfigs {
@@ -31,13 +26,22 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
-        val sideloadKeystore = file("${rootDir}/signing/lookbook-sideload.keystore")
-        if (sideloadKeystore.exists()) {
+        val releaseKeystore = System.getenv("KEYSTORE_PATH")
+            ?.takeIf { it.isNotBlank() }
+            ?.let { file(it) }
+        val releaseStorePassword = System.getenv("KEYSTORE_PASSWORD")
+        val releaseKeyAlias = System.getenv("KEY_ALIAS")
+        val releaseKeyPassword = System.getenv("KEY_PASSWORD")
+        if (releaseKeystore?.exists() == true &&
+            !releaseStorePassword.isNullOrBlank() &&
+            !releaseKeyAlias.isNullOrBlank() &&
+            !releaseKeyPassword.isNullOrBlank()
+        ) {
             create("releaseConfig") {
-                storeFile = sideloadKeystore
-                storePassword = "lookbook-sideload"
-                keyAlias = "lookbook"
-                keyPassword = "lookbook-sideload"
+                storeFile = releaseKeystore
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
             }
         }
     }
@@ -45,9 +49,6 @@ android {
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("debugConfig")
-            buildConfigField("String", "DEFAULT_HF_TOKEN", "\"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\"")
-            buildConfigField("String", "DEFAULT_OPENROUTER_TOKEN", "\"\"")
-            buildConfigField("String", "DEFAULT_GROQ_TOKEN", "\"\"")
         }
         release {
             isMinifyEnabled = false
@@ -55,10 +56,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = signingConfigs.findByName("releaseConfig") ?: signingConfigs.getByName("debugConfig")
-            buildConfigField("String", "DEFAULT_HF_TOKEN", "\"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\"")
-            buildConfigField("String", "DEFAULT_OPENROUTER_TOKEN", "\"\"")
-            buildConfigField("String", "DEFAULT_GROQ_TOKEN", "\"\"")
+            val releaseSigning = signingConfigs.findByName("releaseConfig")
+            val releaseRequested = gradle.startParameter.taskNames.any {
+                it.contains("release", ignoreCase = true)
+            }
+            if (releaseRequested && releaseSigning == null) {
+                error("Release signing secrets are required: KEYSTORE_PATH, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD")
+            }
+            signingConfig = releaseSigning ?: signingConfigs.getByName("debugConfig")
         }
     }
 

@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -146,6 +147,8 @@ import com.zakir.vestra.ui.TryOnViewModel
 import com.zakir.vestra.ui.components.SpatialBackground
 import com.zakir.vestra.ui.theme.RadiusTokens
 import com.zakir.vestra.ui.theme.VestraColors
+import com.zakir.vestra.ui.theme.VestraShapes
+import com.zakir.vestra.ui.theme.VestraSpacing
 import com.zakir.vestra.ui.util.rememberCameraGatedAction
 import java.io.File
 import kotlin.math.roundToInt
@@ -594,9 +597,10 @@ private fun StudioTopBar(
     onReset: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
+                    modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = VestraSpacing.md, vertical = VestraSpacing.xs),
+
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -607,7 +611,7 @@ private fun StudioTopBar(
             IconButton(
                 onClick = onBack,
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(VestraColors.GlassFill)
                     .border(1.dp, VestraColors.GlassBorder, CircleShape),
@@ -656,7 +660,7 @@ private fun StudioTopBar(
             IconButton(
                 onClick = onReset,
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(VestraColors.GlassFill)
                     .border(1.dp, VestraColors.GlassBorder, CircleShape),
@@ -671,7 +675,7 @@ private fun StudioTopBar(
             IconButton(
                 onClick = onOpenSettings,
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(VestraColors.GlassFill)
                     .border(1.dp, VestraColors.GlassBorder, CircleShape),
@@ -702,10 +706,10 @@ private fun ModelEnginePickerCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(RadiusTokens.lg))
-            .background(VestraColors.GlassFill)
-            .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(RadiusTokens.lg))
-            .padding(12.dp),
+            .clip(RoundedCornerShape(VestraShapes.card))
+            .background(VestraColors.SurfaceRaised)
+            .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(VestraShapes.card))
+            .padding(VestraSpacing.sm),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -775,11 +779,12 @@ private fun ModelChip(
 
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(VestraShapes.control))
             .background(bgColor)
-            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(VestraShapes.control))
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .padding(horizontal = VestraSpacing.sm, vertical = VestraSpacing.xs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {

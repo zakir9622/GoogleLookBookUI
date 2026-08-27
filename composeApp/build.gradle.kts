@@ -4,8 +4,6 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
-import java.util.Properties
-
 android {
     namespace = "com.zakir.vestra"
     compileSdk = 36
@@ -18,10 +16,6 @@ android {
         versionName = "3.1.0-rc23"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["timeout_msec"] = "120000"
-        // Never bake secrets into release APKs — debug/sideloadDebug may seed from local.properties.
-        buildConfigField("String", "DEFAULT_HF_TOKEN", "\"\"")
-        buildConfigField("String", "DEFAULT_OPENROUTER_TOKEN", "\"\"")
-        buildConfigField("String", "DEFAULT_GROQ_TOKEN", "\"\"")
     }
 
     flavorDimensions += "distribution"
@@ -38,36 +32,24 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystorePath = System.getenv("KEYSTORE_PATH")
-                ?: rootProject.file("signing/lookbook-sideload.keystore").absolutePath
-            val keystoreFile = file(keystorePath)
-            if (keystoreFile.exists()) {
+            val keystoreFile = System.getenv("KEYSTORE_PATH")?.let { file(it) }
+            val storePassword = System.getenv("KEYSTORE_PASSWORD")
+            val keyAlias = System.getenv("KEY_ALIAS")
+            val keyPassword = System.getenv("KEY_PASSWORD")
+            if (keystoreFile?.exists() == true && !storePassword.isNullOrBlank() &&
+                !keyAlias.isNullOrBlank() && !keyPassword.isNullOrBlank()
+            ) {
                 storeFile = keystoreFile
-                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "lookbook-sideload"
-                keyAlias = System.getenv("KEY_ALIAS") ?: "lookbook"
-                keyPassword = System.getenv("KEY_PASSWORD") ?: "lookbook-sideload"
+                this.storePassword = storePassword
+                this.keyAlias = keyAlias
+                this.keyPassword = keyPassword
             }
         }
     }
 
     buildTypes {
         debug {
-            val localProps = Properties().apply {
-                val f = rootProject.file("local.properties")
-                if (f.exists()) f.inputStream().use { load(it) }
-            }
-            val hfDefault = (localProps.getProperty("lookbook.hf.token")
-                ?: System.getenv("LOOKBOOK_HF_TOKEN")
-                ?: "").replace("\\", "\\\\").replace("\"", "\\\"")
-            val orDefault = (localProps.getProperty("lookbook.openrouter.token")
-                ?: System.getenv("LOOKBOOK_OPENROUTER_TOKEN")
-                ?: "").replace("\\", "\\\\").replace("\"", "\\\"")
-            val groqDefault = (localProps.getProperty("lookbook.groq.token")
-                ?: System.getenv("LOOKBOOK_GROQ_TOKEN")
-                ?: "").replace("\\", "\\\\").replace("\"", "\\\"")
-            buildConfigField("String", "DEFAULT_HF_TOKEN", "\"$hfDefault\"")
-            buildConfigField("String", "DEFAULT_OPENROUTER_TOKEN", "\"$orDefault\"")
-            buildConfigField("String", "DEFAULT_GROQ_TOKEN", "\"$groqDefault\"")
+            // Tokens are entered in Settings or restored from the user's private sidecar.
         }
         release {
             isMinifyEnabled = true
@@ -76,12 +58,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = signingConfigs.getByName("release").takeIf {
+            val releaseSigning = signingConfigs.getByName("release").takeIf {
                 it.storeFile?.exists() == true
-            } ?: signingConfigs.getByName("debug")
-            buildConfigField("String", "DEFAULT_HF_TOKEN", "\"\"")
-            buildConfigField("String", "DEFAULT_OPENROUTER_TOKEN", "\"\"")
-            buildConfigField("String", "DEFAULT_GROQ_TOKEN", "\"\"")
+            }
+            val releaseRequested = gradle.startParameter.taskNames.any {
+                it.contains("release", ignoreCase = true)
+            }
+            if (releaseRequested && releaseSigning == null) {
+                error("Release signing secrets are required: KEYSTORE_PATH, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD")
+            }
+            signingConfig = releaseSigning ?: signingConfigs.getByName("debug")
         }
     }
 
