@@ -77,7 +77,11 @@ class ScreenshotTest {
         override fun getBooleanOrNull(key: String): Boolean? = map[key] as? Boolean
     }
 
-    private fun shoot(name: String, content: @Composable () -> Unit) {
+    private fun shoot(
+        name: String,
+        darkTheme: Boolean = true,
+        content: @Composable () -> Unit,
+    ) {
         // Deliberately NOT captureToImage(): that goes through forceRedraw(), which blocks on a
         // real window draw callback that never fires without a surface, so it always times out
         // under Robolectric. Drawing the decor view straight onto a software Canvas produces the
@@ -87,7 +91,7 @@ class ScreenshotTest {
         // the composition never reports idle and any wait-for-idle would hang.
         compose.mainClock.autoAdvance = false
         compose.setContent {
-            VestraTheme(darkTheme = true) {
+            VestraTheme(darkTheme = darkTheme) {
                 Box(
                     androidx.compose.ui.Modifier
                         .fillMaxSize()
@@ -355,6 +359,38 @@ class ScreenshotTest {
                 onStop = {},
                 placeholder = "Describe the image…",
             )
+        }
+    }
+
+    /** Light-mode fixture for the docked composer: preserves accessible contrast in the paired theme. */
+    @Test
+    fun composerDockLight() {
+        shoot("05b-composer-dock-light", darkTheme = false) {
+            androidx.compose.foundation.layout.Column(
+                androidx.compose.ui.Modifier.fillMaxSize(),
+            ) {
+                androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.weight(1f))
+                androidx.compose.foundation.layout.Column(
+                    androidx.compose.ui.Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp)
+                        .padding(bottom = 10.dp, top = 4.dp),
+                ) {
+                    PromptComposer(
+                        prompt = "Emerald abaya in a Lahore bazaar, soft afternoon light",
+                        onPromptChange = {},
+                        modelLabel = "Local tiny-SD (offline)",
+                        assistCount = 2,
+                        busy = false,
+                        enabled = true,
+                        onModelClick = {},
+                        onAssistsClick = {},
+                        onSend = {},
+                        onStop = {},
+                        placeholder = "Describe the image…",
+                    )
+                }
+            }
         }
     }
 
