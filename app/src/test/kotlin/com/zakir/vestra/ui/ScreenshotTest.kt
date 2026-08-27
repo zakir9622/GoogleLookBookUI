@@ -374,6 +374,32 @@ class ScreenshotTest {
         }
     }
 
+    /** First-run Spatial AI onboarding in the default dark appearance. */
+    @Test
+    fun onboardingFirstDirectionDark() {
+        val settings = AppSettings(MemorySettings())
+        shoot("14-onboarding-first-direction-dark") {
+            com.zakir.vestra.ui.screens.onboarding.OnboardingScreen(
+                appSettings = settings,
+                onDone = {},
+                requestStartupPermissions = false,
+            )
+        }
+    }
+
+    /** Paired light appearance verifies the rewritten first-run flow remains high contrast. */
+    @Test
+    fun onboardingFirstDirectionLight() {
+        val settings = AppSettings(MemorySettings())
+        shoot("15-onboarding-first-direction-light", darkTheme = false) {
+            com.zakir.vestra.ui.screens.onboarding.OnboardingScreen(
+                appSettings = settings,
+                onDone = {},
+                requestStartupPermissions = false,
+            )
+        }
+    }
+
     /** The composer as it renders docked at the bottom of the studio. */
     @Test
     fun composerDock() {
