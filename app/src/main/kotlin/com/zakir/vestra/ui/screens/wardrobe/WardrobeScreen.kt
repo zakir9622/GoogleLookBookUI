@@ -336,6 +336,13 @@ private fun LookDetailDialog(
     val file = File(entry.imagePath)
     val isVideo = file.extension.lowercase() in setOf("mp4", "webm")
     val history = remember(entry, allEntries) { ancestorChain(entry, allEntries) }
+    val batchCandidates = remember(entry, allEntries) {
+        entry.batchId?.let { batchId ->
+            allEntries
+                .filter { it.batchId == batchId }
+                .sortedBy { it.candidateIndex ?: Int.MAX_VALUE }
+        }.orEmpty()
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -366,11 +373,75 @@ private fun LookDetailDialog(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "${entry.tier.name.lowercase()} · ${if (isVideo) "video clip" else "still"}" +
-                        if (history.isNotEmpty()) " · version ${history.size + 1}" else "",
+                    buildString {
+                        append(entry.tier.name.lowercase())
+                        append(" · ")
+                        append(if (isVideo) "video clip" else "still")
+                        entry.candidateIndex?.let { index ->
+                            append(" · option ${index + 1}/${entry.candidateCount ?: batchCandidates.size.coerceAtLeast(1)}")
+                        }
+                        if (history.isNotEmpty()) append(" · version ${history.size + 1}")
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                entry.providerId?.let { provider ->
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        buildString {
+                            append(provider)
+                            entry.seed?.let { append(" · seed $it") }
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                entry.prompt?.takeIf { it.isNotBlank() }?.let { savedPrompt ->
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        savedPrompt,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (batchCandidates.size > 1) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "BATCH · ${batchCandidates.size} OPTIONS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    batchCandidates.forEach { sibling ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelectEntry(sibling) }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        ) {
+                            MediaThumb(
+                                file = File(sibling.imagePath),
+                                contentDescription = "Batch option ${(sibling.candidateIndex ?: 0) + 1}",
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                if (sibling.id == entry.id) "Selected option" else "Option ${(sibling.candidateIndex ?: 0) + 1}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (sibling.id == entry.id) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        }
+                    }
+                }
                 if (history.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))
                     Text(

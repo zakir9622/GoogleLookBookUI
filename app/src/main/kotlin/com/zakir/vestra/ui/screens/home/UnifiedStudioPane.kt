@@ -281,7 +281,13 @@ fun UnifiedStudioPane(
     val feedItems by viewModel.feedItems.collectAsState()
 
     // Auto-scroll to bottom of conversational canvas on new turns or deliverables
-    LaunchedEffect(feedItems.size, (state as? GenerativeState.Running)?.stage, (state as? GenerativeState.ImageReady)?.path, (state as? GenerativeState.VideoReady)?.path) {
+    LaunchedEffect(
+        feedItems.size,
+        (state as? GenerativeState.Running)?.stage,
+        (state as? GenerativeState.ImageReady)?.path,
+        (state as? GenerativeState.ImageBatchReady)?.batch?.selectedCandidateId,
+        (state as? GenerativeState.VideoReady)?.path,
+    ) {
         if (feedItems.isNotEmpty()) {
             scrollState.animateScrollTo(scrollState.maxValue)
         }
@@ -448,6 +454,12 @@ fun UnifiedStudioPane(
                                     } else if (feedItem.referenceUri != null) {
                                         viewModel.setReference(feedItem.referenceUri)
                                     }
+                                },
+                                onSelectCandidate = { candidateId ->
+                                    viewModel.selectImageCandidate(feedItem.id, candidateId)
+                                },
+                                onCreateVariation = { candidateId ->
+                                    viewModel.createImageVariation(feedItem.id, candidateId)
                                 },
                                 onRetry = {
                                     viewModel.setPrompt(feedItem.prompt)

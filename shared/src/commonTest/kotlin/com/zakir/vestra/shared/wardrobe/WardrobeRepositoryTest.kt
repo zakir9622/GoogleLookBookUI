@@ -84,4 +84,41 @@ class WardrobeRepositoryTest {
         assertEquals("v1", reloaded.entries.value.first { it.id == "v2" }.parentGenerationId)
         assertEquals(null, reloaded.entries.value.first { it.id == "v1" }.parentGenerationId)
     }
+
+    @Test
+    fun candidateLineageRoundTripsAndQueriesByBatch() {
+        val store = InMemoryStore()
+        val repo = WardrobeRepository(store)
+        repo.add(
+            entry("option-2").copy(
+                batchId = "batch-1",
+                candidateId = "candidate-2",
+                parentCandidateId = "candidate-root",
+                candidateIndex = 1,
+                candidateCount = 2,
+                prompt = "Editorial portrait",
+                providerId = "local-sdturbo-v1",
+                seed = 42L,
+            ),
+        )
+        repo.add(
+            entry("option-1").copy(
+                batchId = "batch-1",
+                candidateId = "candidate-1",
+                parentCandidateId = "candidate-root",
+                candidateIndex = 0,
+                candidateCount = 2,
+                prompt = "Editorial portrait",
+                providerId = "local-sdturbo-v1",
+                seed = 41L,
+            ),
+        )
+
+        val reloaded = WardrobeRepository(store)
+        val found = reloaded.findByCandidateId("candidate-2")
+        assertEquals("candidate-root", found?.parentCandidateId)
+        assertEquals("Editorial portrait", found?.prompt)
+        assertEquals(42L, found?.seed)
+        assertEquals(listOf("candidate-1", "candidate-2"), reloaded.candidatesInBatch("batch-1").map { it.candidateId })
+    }
 }

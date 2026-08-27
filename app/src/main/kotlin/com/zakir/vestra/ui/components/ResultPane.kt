@@ -71,6 +71,8 @@ fun ResultPane(
     onDismiss: (() -> Unit)? = null,
     onCancel: (() -> Unit)? = null,
     onRemix: (() -> Unit)? = null,
+    onSelectCandidate: ((candidateId: String) -> Unit)? = null,
+    onCreateVariation: ((candidateId: String) -> Unit)? = null,
     onQuickTweak: ((modifier: String) -> Unit)? = null,
     retryLabel: String = LookbookCopy.ACTION_RETRY,
 ) {
@@ -78,6 +80,7 @@ fun ResultPane(
     val reportStore = remember { LocalReportStore(context) }
     var reportPath by remember { mutableStateOf<String?>(null) }
     var showFullScreenImage by remember { mutableStateOf(false) }
+    var previewCandidateId by remember { mutableStateOf<String?>(null) }
 
     if (showFullScreenImage && state is GenerativeState.ImageReady) {
         FullScreenImageViewer(
@@ -90,6 +93,28 @@ fun ResultPane(
                 reportPath = state.path
             },
         )
+    }
+    if (showFullScreenImage && state is GenerativeState.ImageBatchReady) {
+        val candidate = state.batch.candidates
+            .firstOrNull { it.id == previewCandidateId }
+            ?: state.batch.selectedCandidate
+        if (candidate != null) {
+            FullScreenImageViewer(
+                imagePath = candidate.path,
+                prompt = candidate.prompt,
+                onDismiss = { showFullScreenImage = false },
+                onRemix = onCreateVariation?.let { createVariation ->
+                    {
+                        showFullScreenImage = false
+                        createVariation(candidate.id)
+                    }
+                },
+                onReport = {
+                    showFullScreenImage = false
+                    reportPath = candidate.path
+                },
+            )
+        }
     }
 
     reportPath?.let { path ->
@@ -191,6 +216,51 @@ fun ResultPane(
                 style = MaterialTheme.typography.labelSmall,
                 color = VestraColors.InkMuted,
             )
+        }
+        is GenerativeState.ImageBatchReady -> {
+            val batch = state.batch
+            val selectedId = batch.selectedCandidateId ?: batch.candidates.firstOrNull()?.id
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(TestTags.RESULT_IMAGE_READY),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Column {
+                        GlassSectionLabel("CREATIVE OPTIONS")
+                        Text(
+                            "${batch.candidates.size} of ${batch.requestedCandidateCount} candidates ready",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = VestraColors.InkMuted,
+                        )
+                    }
+                    Text(
+                        "Select a direction",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = VestraColors.Accent,
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                ImageCandidateGrid(
+                    batch = batch,
+                    selectedCandidateId = selectedId,
+                    onOpenCandidate = { candidate ->
+                        previewCandidateId = candidate.id
+                        onSelectCandidate?.invoke(candidate.id)
+                        showFullScreenImage = true
+                    },
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Tap an option to review it fullscreen, then save, share, report, or create a variation.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = VestraColors.InkMuted,
+                )
+            }
         }
         is GenerativeState.VideoReady -> GlassCard(modifier = Modifier.testTag(TestTags.RESULT_VIDEO_READY)) {
             GlassSectionLabel("VIDEO READY")
