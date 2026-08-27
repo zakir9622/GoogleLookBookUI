@@ -342,6 +342,33 @@ class ScreenshotTest {
         }
     }
 
+    /** Paired runtime-state fixtures verify semantic surface colors in both appearance modes. */
+    @Test
+    fun generationOverlayAppearanceModes() {
+        shoot("12-generation-overlay-dark") {
+            com.zakir.vestra.ui.components.GenerationStateOverlay(
+                isGenerating = true,
+                progress = 0.52f,
+                currentStep = 4,
+                totalSteps = 8,
+                stageDescription = "Refining selected direction",
+                hardwareTag = "LOCAL IMAGE ENGINE",
+                onCancel = {},
+            )
+        }
+        shoot("13-generation-overlay-light", darkTheme = false) {
+            com.zakir.vestra.ui.components.GenerationStateOverlay(
+                isGenerating = true,
+                progress = 0.52f,
+                currentStep = 4,
+                totalSteps = 8,
+                stageDescription = "Refining selected direction",
+                hardwareTag = "LOCAL IMAGE ENGINE",
+                onCancel = {},
+            )
+        }
+    }
+
     /** The composer as it renders docked at the bottom of the studio. */
     @Test
     fun composerDock() {

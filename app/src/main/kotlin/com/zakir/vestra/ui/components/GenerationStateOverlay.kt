@@ -370,7 +370,7 @@ fun GenerationOverlayContent(
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(Color(0xFF0F1118).copy(alpha = 0.94f))
+            .background(VestraColors.GlassFillStrong)
             .border(1.dp, VestraColors.GlassBorder.copy(alpha = 0.6f), shape)
             .semantics { contentDescription = contentDesc }
             .padding(16.dp),
@@ -412,7 +412,7 @@ fun GenerationOverlayContent(
                             .size(10.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isPreparing) Color(0xFFFFB800) else VestraColors.Accent.copy(alpha = pulseGlow),
+                                if (isPreparing) MaterialTheme.colorScheme.tertiary else VestraColors.Accent.copy(alpha = pulseGlow),
                             ),
                     )
 
@@ -436,8 +436,8 @@ fun GenerationOverlayContent(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFF1E2130))
-                            .border(1.dp, Color(0xFF2C3147), RoundedCornerShape(6.dp))
+                            .background(VestraColors.SurfaceRaised)
+                            .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(6.dp))
                             .padding(horizontal = 6.dp, vertical = 2.dp),
                     ) {
                         Row(
@@ -468,8 +468,9 @@ fun GenerationOverlayContent(
                             modifier = Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF232532))
+                                .background(VestraColors.SurfaceRaised)
                                 .clickable { onCancel() }
+                                .semantics { contentDescription = LookbookCopy.ACTION_CANCEL_GENERATION }
                                 .testTag(TestTags.RESULT_CANCEL_BUTTON),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -522,7 +523,7 @@ fun GenerationOverlayContent(
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp))
-                    .background(Color(0xFF1E2130)),
+                    .background(VestraColors.SurfaceRaised),
             ) {
                 Box(
                     modifier = Modifier
@@ -557,7 +558,7 @@ fun GenerationOverlayContent(
                     val nodeColor = when {
                         isDone -> VestraColors.Accent
                         isCurrent -> VestraColors.Accent.copy(alpha = pulseGlow)
-                        else -> Color(0xFF262B3F)
+                        else -> VestraColors.GlassBorder
                     }
 
                     Box(
