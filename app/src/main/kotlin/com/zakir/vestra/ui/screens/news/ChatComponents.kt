@@ -607,55 +607,6 @@ fun ChatEmptyState(
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
-
-        Spacer(Modifier.height(20.dp))
-
-        Text(
-            text = "CONVERSATION STARTERS",
-            style = MaterialTheme.typography.labelSmall.copy(
-                letterSpacing = 1.2.sp,
-                fontWeight = FontWeight.SemiBold,
-            ),
-            color = VestraColors.InkMuted,
-        )
-
-        Spacer(Modifier.height(10.dp))
-
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            starterPrompts.forEach { (prompt, tag) ->
-                Surface(
-                    shape = RoundedCornerShape(RadiusTokens.md),
-                    color = VestraColors.GlassFill,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(RadiusTokens.md))
-                        .border(1.dp, VestraColors.GlassBorder.copy(alpha = 0.5f), RoundedCornerShape(RadiusTokens.md))
-                        .clickable { onPromptSelected(prompt) },
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = tag,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = VestraColors.Accent,
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = prompt,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = VestraColors.Ink,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -1009,56 +960,6 @@ fun ChatPersistentInputBar(
                         }
                     }
                 }
-
-                // Collapsible Log Viewer Tile in Options (if logs present)
-                if (logs.isNotEmpty()) {
-                    Spacer(Modifier.height(12.dp))
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(16.dp))
-                            .testTag(TestTags.CHAT_LOG_VIEW),
-                        color = VestraColors.GlassFill,
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = "RECENT TELEMETRY (${logs.size} EVENTS)",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp,
-                                    ),
-                                    color = VestraColors.InkMuted,
-                                )
-                            }
-                            Spacer(Modifier.height(6.dp))
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(80.dp)
-                                    .background(VestraColors.Canvas.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                    .padding(6.dp)
-                                    .verticalScroll(rememberScrollState()),
-                            ) {
-                                logs.takeLast(10).forEach { line ->
-                                    Text(
-                                        text = line,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                            fontSize = 9.sp,
-                                        ),
-                                        color = VestraColors.InkMuted,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
     }
@@ -1070,16 +971,6 @@ fun ChatPersistentInputBar(
             .imePadding()
             .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
-        // Quick Prompts Carousel (only when input is empty and idle)
-        if (quickPrompts.isNotEmpty() && onSelectQuickPrompt != null && !busy && prompt.isBlank() && effectiveAttachments.isEmpty()) {
-            com.zakir.vestra.ui.components.QuickPromptCarousel(
-                prompts = quickPrompts,
-                onSelectPrompt = onSelectQuickPrompt,
-                enabled = enabled && !busy,
-            )
-            Spacer(Modifier.height(6.dp))
-        }
-
         // Attached thumbnails preview strip
         if (effectiveAttachments.isNotEmpty()) {
             com.zakir.vestra.ui.components.AttachmentThumbnailBar(

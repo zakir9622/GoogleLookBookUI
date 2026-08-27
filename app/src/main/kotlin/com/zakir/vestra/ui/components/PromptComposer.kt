@@ -134,16 +134,6 @@ fun PromptComposer(
             .imePadding()
             .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
-        // Quick Prompts row (only when prompt is empty and idle)
-        if (quickPrompts.isNotEmpty() && onSelectQuickPrompt != null && !busy && prompt.isBlank() && referenceUri == null && effectiveAttachments.isEmpty()) {
-            QuickPromptCarousel(
-                prompts = quickPrompts,
-                onSelectPrompt = onSelectQuickPrompt,
-                enabled = enabled && !busy,
-            )
-            Spacer(Modifier.height(6.dp))
-        }
-
         // Compact Attached Media Strip (takes minimal space when active)
         if (effectiveAttachments.isNotEmpty()) {
             AttachmentThumbnailBar(

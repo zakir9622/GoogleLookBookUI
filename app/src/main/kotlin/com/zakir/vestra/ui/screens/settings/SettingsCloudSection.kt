@@ -127,7 +127,7 @@ private fun ProcessingModeCard(
     }
 }
 
-/** Minimal, refined API keys card with validate buttons and free model catalog launcher. */
+/** Minimal, refined API keys card with clean inputs and streamlined save action. */
 internal fun LazyListScope.settingsCloudKeysSection(
     appSettings: AppSettings,
     hfTokenSaved: Boolean,
@@ -155,75 +155,14 @@ internal fun LazyListScope.settingsCloudKeysSection(
         var openRouterStatus by remember { mutableStateOf<TokenValidationState>(TokenValidationState.Idle) }
 
         GlassCard {
-            GlassSectionLabel("API KEYS & ACCESS TOKENS")
+            GlassSectionLabel("API KEYS & ACCESS")
             Text(
-                "Add your free provider tokens to unlock fast cloud models. Tokens are securely stored on-device.",
+                "Optionally connect cloud providers for high-speed remote models. Keys are stored locally on-device.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Spacer(Modifier.height(12.dp))
-
-            // Action: View Free Models Button
-            OutlinedButton(
-                onClick = onOpenFreeModels,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp), tint = VestraColors.Accent)
-                Spacer(Modifier.width(8.dp))
-                Text("View Available Free Models", fontWeight = FontWeight.SemiBold)
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            // Quick Portal Links
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = { onOpenPortal(TokenSidecar.Portal.HF) },
-                    modifier = Modifier.weight(1f),
-                ) { Text("Get HF Key", fontSize = 12.sp) }
-                OutlinedButton(
-                    onClick = { onOpenPortal(TokenSidecar.Portal.GROQ) },
-                    modifier = Modifier.weight(1f),
-                ) { Text("Get Groq Key", fontSize = 12.sp) }
-                OutlinedButton(
-                    onClick = { onOpenPortal(TokenSidecar.Portal.OPENROUTER) },
-                    modifier = Modifier.weight(1f),
-                ) { Text("Get OpenRouter", fontSize = 12.sp) }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            // Clipboard Paste & File Import
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = {
-                        if (!onApplyClipboard()) {
-                            Toast.makeText(context, "No API key found on clipboard", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, "Pasted key from clipboard", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Paste clipboard", fontSize = 12.sp)
-                }
-                OutlinedButton(
-                    onClick = {
-                        importTokensLauncher.launch(arrayOf("application/json", "text/plain", "text/*", "*/*"))
-                    },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Import file", fontSize = 12.sp)
-                }
-            }
-
-            clipboardHint?.let {
-                Spacer(Modifier.height(6.dp))
-                Text(it, style = MaterialTheme.typography.labelMedium, color = VestraColors.Accent)
-            }
-
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(16.dp))
 
             // Hugging Face Input + Validate
             ValidatedKeyField(
@@ -243,11 +182,11 @@ internal fun LazyListScope.settingsCloudKeysSection(
                 },
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
 
             // Groq Input + Validate
             ValidatedKeyField(
-                label = "Groq API Key (LPU Fast Inference)",
+                label = "Groq API Key",
                 placeholder = "gsk_...",
                 value = groqInput,
                 onValueChange = {
@@ -263,11 +202,11 @@ internal fun LazyListScope.settingsCloudKeysSection(
                 },
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
 
             // OpenRouter Input + Validate
             ValidatedKeyField(
-                label = "OpenRouter API Key (Free Models)",
+                label = "OpenRouter API Key",
                 placeholder = "sk-or-...",
                 value = openRouterInput,
                 onValueChange = {
@@ -283,13 +222,14 @@ internal fun LazyListScope.settingsCloudKeysSection(
                 },
             )
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(16.dp))
 
             Button(
                 onClick = onSaveTokens,
+                shape = RoundedCornerShape(24.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (keysSavedFlash) "Tokens Saved ✓" else LookbookCopy.ACTION_SAVE_TOKENS)
+                Text(if (keysSavedFlash) "Keys Saved ✓" else "Save Keys", fontWeight = FontWeight.SemiBold)
             }
         }
         Spacer(Modifier.height(14.dp))

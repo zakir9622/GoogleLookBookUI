@@ -57,6 +57,7 @@ import com.zakir.vestra.data.ReportReason
 import com.zakir.vestra.media.MediaExport
 import com.zakir.vestra.shared.content.LookbookCopy
 import com.zakir.vestra.shared.wardrobe.WardrobeRepository
+import com.zakir.vestra.ui.components.FullScreenImageViewer
 import com.zakir.vestra.ui.components.GlassEmptyState
 import com.zakir.vestra.ui.components.GlassImageFrame
 import com.zakir.vestra.ui.components.GlassPill
@@ -82,9 +83,22 @@ fun ResultScreen(
     val results = shoot?.completed.orEmpty()
     var selectedShot by remember { mutableStateOf(0) }
     var showReport by remember { mutableStateOf(false) }
+    var showFullScreen by remember { mutableStateOf(false) }
     val result = results.getOrNull(selectedShot.coerceIn(0, (results.size - 1).coerceAtLeast(0)))
     val wardrobeMatch = result?.let { shot ->
         wardrobeEntries.firstOrNull { it.imagePath == shot.imagePath }
+    }
+
+    if (showFullScreen && result != null) {
+        FullScreenImageViewer(
+            imagePath = result.imagePath,
+            prompt = "Look Shot ${selectedShot + 1}",
+            onDismiss = { showFullScreen = false },
+            onRemix = {
+                showFullScreen = false
+                onNewLook()
+            },
+        )
     }
 
     if (showReport && result != null) {
@@ -162,7 +176,8 @@ fun ResultScreen(
                         Modifier
                             .fillMaxSize()
                             .padding(8.dp)
-                            .clip(RoundedCornerShape(16.dp)),
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { showFullScreen = true },
                         contentAlignment = Alignment.Center,
                     ) {
                         if (userPhoto != null && results.size == 1) {

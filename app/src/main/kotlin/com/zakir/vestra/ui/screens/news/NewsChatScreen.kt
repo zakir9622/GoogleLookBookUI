@@ -67,7 +67,6 @@ import com.zakir.vestra.ui.components.GlassErrorBanner
 import com.zakir.vestra.ui.components.LiteRtActiveDownloadBanner
 import com.zakir.vestra.ui.components.ModelPickerSheet
 import com.zakir.vestra.ui.components.OnDevicePickerEntry
-import com.zakir.vestra.ui.components.QuickPromptItem
 import com.zakir.vestra.ui.theme.VestraColors
 import kotlinx.coroutines.launch
 
@@ -365,20 +364,6 @@ fun NewsChatScreen(
             }
         }
 
-        // Contextual Quick Prompts for Chat
-        val chatQuickPrompts = remember(newsItems) {
-            val list = mutableListOf(
-                QuickPromptItem("What modest fabrics breathe best in summer?", "Fabrics"),
-                QuickPromptItem("Summarize latest industry headlines", "News"),
-                QuickPromptItem("Compare silk vs linen drape for an abaya", "Style"),
-                QuickPromptItem("Explain on-device LLM offline capabilities", "AI"),
-            )
-            if (newsItems.isNotEmpty()) {
-                list.add(0, QuickPromptItem("Discuss '${newsItems.first().title}'", "Latest"))
-            }
-            list
-        }
-
         // Persistent Bottom Input Bar
         if (chatViewModel != null) {
             ChatPersistentInputBar(
@@ -387,11 +372,6 @@ fun NewsChatScreen(
                 modelLabel = chatModelLabel,
                 busy = chatBusy,
                 enabled = true,
-                logs = chatLogs,
-                quickPrompts = chatQuickPrompts,
-                onSelectQuickPrompt = { selectedPrompt ->
-                    chatInput = selectedPrompt
-                },
                 onModelClick = { if (appSettings != null) showModelPicker = true },
                 onSend = {
                     val text = chatInput

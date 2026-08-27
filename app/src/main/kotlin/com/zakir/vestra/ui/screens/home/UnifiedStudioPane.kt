@@ -384,28 +384,8 @@ fun UnifiedStudioPane(
             }
 
             if (feedItems.isEmpty() && state == null && !busy) {
-                // Empty state with clean curated prompt starters
-                if (examples.isNotEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 14.dp),
-                    ) {
-                        Text(
-                            "Curated Prompt Starters",
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                            color = VestraColors.Ink,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        ExamplePromptRow(
-                            examples = examples,
-                            enabled = !busy,
-                            onPick = viewModel::setPrompt,
-                        )
-                    }
-                }
+                // Clean empty canvas
+                Spacer(Modifier.height(32.dp))
             } else {
                 // Conversational Stream of Generations & Outputs
                 Column(
@@ -496,10 +476,20 @@ fun UnifiedStudioPane(
                             // AI Output / Deliverable Pane for this turn
                             ResultPane(
                                 state = feedItem.state,
-                                liveLog = emptyList(), // Live console rendered in floating composer
+                                liveLog = emptyList(), // Live console removed from prompt box
                                 generationStartedAtMs = feedItem.generationStartedAtMs,
                                 referenceUri = feedItem.referenceUri,
+                                prompt = feedItem.prompt,
                                 onCancel = { viewModel.forceStop() },
+                                onRemix = {
+                                    val remixPrompt = if (feedItem.prompt.isNotBlank()) "Remix: ${feedItem.prompt}" else "Remix look"
+                                    viewModel.setPrompt(remixPrompt)
+                                    if (feedItem.state is GenerativeState.ImageReady) {
+                                        viewModel.setReference(feedItem.state.path)
+                                    } else if (feedItem.referenceUri != null) {
+                                        viewModel.setReference(feedItem.referenceUri)
+                                    }
+                                },
                                 onRetry = {
                                     viewModel.setPrompt(feedItem.prompt)
                                     viewModel.setReference(feedItem.referenceUri)

@@ -1,9 +1,16 @@
 package com.zakir.vestra.ui.screens.help
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -12,17 +19,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.zakir.vestra.shared.content.HelpCatalog
 import com.zakir.vestra.shared.content.LookbookCopy
 import com.zakir.vestra.ui.components.GlassCard
-import com.zakir.vestra.ui.components.GlassPrimaryButton
 import com.zakir.vestra.ui.components.GlassScreen
 import com.zakir.vestra.ui.components.GlassSectionLabel
+import com.zakir.vestra.ui.theme.VestraColors
 import com.zakir.vestra.ui.util.openAppSystemSettings
 import com.zakir.vestra.ui.util.openNotificationSettings
 
@@ -66,23 +76,11 @@ fun HelpScreen(
         Spacer(Modifier.height(12.dp))
         GlassCard {
             GlassSectionLabel("QUICK ACTIONS")
-            GlassPrimaryButton(
-                text = LookbookCopy.ACTION_OPEN_SETTINGS,
-                onClick = onOpenSettings,
-            )
-            Spacer(Modifier.height(8.dp))
-            GlassPrimaryButton(
-                text = "App permission settings",
-                onClick = { context.openAppSystemSettings() },
-            )
-            Spacer(Modifier.height(8.dp))
-            GlassPrimaryButton(
-                text = "Notification settings",
-                onClick = { context.openNotificationSettings() },
-            )
-            Spacer(Modifier.height(8.dp))
-            GlassPrimaryButton(
-                text = LookbookCopy.ACTION_CONTACT_SUPPORT,
+            HelpActionRow(title = LookbookCopy.ACTION_OPEN_SETTINGS, onClick = onOpenSettings)
+            HelpActionRow(title = "App permissions", onClick = { context.openAppSystemSettings() })
+            HelpActionRow(title = "Notification settings", onClick = { context.openNotificationSettings() })
+            HelpActionRow(
+                title = LookbookCopy.ACTION_CONTACT_SUPPORT,
                 onClick = {
                     val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
                         data = android.net.Uri.parse("mailto:${LookbookCopy.SUPPORT_EMAIL}")
@@ -137,5 +135,33 @@ fun HelpScreen(
             }
         }
         Spacer(Modifier.height(28.dp))
+    }
+}
+
+@Composable
+private fun HelpActionRow(
+    title: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp, horizontal = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = VestraColors.Ink,
+        )
+        Icon(
+            Icons.AutoMirrored.Outlined.ArrowForwardIos,
+            contentDescription = null,
+            tint = VestraColors.InkMuted,
+            modifier = Modifier.padding(end = 4.dp),
+        )
     }
 }

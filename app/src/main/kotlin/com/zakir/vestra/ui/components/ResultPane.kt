@@ -12,19 +12,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,11 +41,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.zakir.vestra.ui.components.ShimmerAsyncImage
 import com.zakir.vestra.data.LocalReportStore
@@ -59,9 +66,11 @@ fun ResultPane(
     liveLog: List<String> = emptyList(),
     generationStartedAtMs: Long? = null,
     referenceUri: String? = null,
+    prompt: String? = null,
     onRetry: (() -> Unit)? = null,
     onDismiss: (() -> Unit)? = null,
     onCancel: (() -> Unit)? = null,
+    onRemix: (() -> Unit)? = null,
     onQuickTweak: ((modifier: String) -> Unit)? = null,
     retryLabel: String = LookbookCopy.ACTION_RETRY,
 ) {
@@ -69,6 +78,16 @@ fun ResultPane(
     val reportStore = remember { LocalReportStore(context) }
     var reportPath by remember { mutableStateOf<String?>(null) }
     var showCompareMode by remember { mutableStateOf(false) }
+    var showFullScreenImage by remember { mutableStateOf(false) }
+
+    if (showFullScreenImage && state is GenerativeState.ImageReady) {
+        FullScreenImageViewer(
+            imagePath = state.path,
+            prompt = prompt,
+            onDismiss = { showFullScreenImage = false },
+            onRemix = onRemix,
+        )
+    }
 
     reportPath?.let { path ->
         AlertDialog(
@@ -152,12 +171,48 @@ fun ResultPane(
                     afterImage = File(state.path),
                 )
             } else {
-                ShimmerAsyncImage(
-                    model = File(state.path),
-                    contentDescription = "Generated look",
-                    modifier = Modifier.fillMaxWidth().height(320.dp),
-                    contentScale = ContentScale.Fit,
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { showFullScreenImage = true }
+                        .testTag("expandable_result_image"),
+                ) {
+                    ShimmerAsyncImage(
+                        model = File(state.path),
+                        contentDescription = "Generated look. Tap to expand.",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit,
+                    )
+                    // Gemini-style Tap to expand pill hint
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Color.Black.copy(alpha = 0.6f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                        modifier = Modifier
+                            .align(androidx.compose.ui.Alignment.BottomEnd)
+                            .padding(10.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = VestraColors.Accent,
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = "Tap to expand",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = Color.White,
+                            )
+                        }
+                    }
+                }
             }
 
             // Quick-Tap Prompt Tweaking Chips
@@ -204,15 +259,25 @@ fun ResultPane(
             }
 
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 GlassSecondaryButton(
-                    text = "Save to Photos",
+                    text = "Save",
                     onClick = {
                         MediaExport.saveImageToGallery(context, File(state.path))
                         Toast.makeText(context, "Saved to Device Photos", Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.weight(1f),
                 )
+                if (onRemix != null) {
+                    GlassSecondaryButton(
+                        text = "Remix",
+                        onClick = onRemix,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 GlassSecondaryButton(
                     text = LookbookCopy.ACTION_SHARE,
                     onClick = { MediaExport.share(context, File(state.path), "Share image") },

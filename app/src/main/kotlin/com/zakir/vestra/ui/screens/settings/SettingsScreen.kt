@@ -210,7 +210,6 @@ fun SettingsScreen(
         scope.launch {
             runCatching { freeCloudDiscovery.refreshRouterDiscovery(appSettings) }
         }
-        if (hfInput.isNotBlank()) showTokenWizard = true
     }
 
     if (showTokenWizard) {
