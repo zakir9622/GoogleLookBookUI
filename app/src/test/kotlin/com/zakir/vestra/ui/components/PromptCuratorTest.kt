@@ -28,7 +28,7 @@ class PromptCuratorTest {
         )
 
         assertEquals(4, prompts.size)
-        assertTrue(prompts.any { it.tag == "REFINE" })
+        assertTrue(prompts.all { it.tag in setOf("REFINE", "COLOR", "DETAIL", "CAMPAIGN", "COMPOSE") })
         assertTrue(prompts.none { it.tag == "PORTRAIT" })
     }
 

@@ -55,6 +55,7 @@ sealed interface GenerativeState {
         val deadlineEpochMs: Long? = null,
     ) : GenerativeState
     data class ImageReady(val path: String, val providerId: String) : GenerativeState
+    data class ImageBatchReady(val batch: GenerationBatch) : GenerativeState
     data class VideoReady(val path: String, val providerId: String) : GenerativeState
     data class AudioReady(val path: String, val providerId: String) : GenerativeState
     data class CodeReady(val text: String, val tokensIn: Int, val tokensOut: Int, val providerId: String) : GenerativeState

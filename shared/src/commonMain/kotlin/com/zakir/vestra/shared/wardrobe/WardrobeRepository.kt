@@ -30,6 +30,19 @@ data class WardrobeEntry(
      * first attempt in a tab, or entries from before this field existed).
      */
     val parentGenerationId: String? = null,
+    /** Creative Studio V2 batch that produced this candidate; null on legacy entries. */
+    val batchId: String? = null,
+    /** Stable candidate identity used by variation and lineage links. */
+    val candidateId: String? = null,
+    /** Exact source candidate for a variation; null for a root candidate. */
+    val parentCandidateId: String? = null,
+    /** Position and total within the originating batch. */
+    val candidateIndex: Int? = null,
+    val candidateCount: Int? = null,
+    /** Reproducibility metadata retained with the creation recipe. */
+    val prompt: String? = null,
+    val providerId: String? = null,
+    val seed: Long? = null,
 )
 
 /** Minimal platform file seam; androidMain/iosMain provide actuals. */
@@ -59,6 +72,14 @@ class WardrobeRepository(private val store: TextFileStore) {
             }.sortedWith(compareByDescending<WardrobeEntry> { it.favorited }.thenByDescending { it.createdAtEpochMillis }),
         )
     }
+
+    fun findByCandidateId(candidateId: String): WardrobeEntry? =
+        _entries.value.firstOrNull { it.candidateId == candidateId }
+
+    fun candidatesInBatch(batchId: String): List<WardrobeEntry> =
+        _entries.value
+            .filter { it.batchId == batchId }
+            .sortedBy { it.candidateIndex ?: Int.MAX_VALUE }
 
     private fun update(entries: List<WardrobeEntry>) {
         _entries.value = entries

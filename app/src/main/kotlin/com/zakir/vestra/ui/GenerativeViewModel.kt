@@ -7,6 +7,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.zakir.vestra.shared.cloud.AiCapability
 import com.zakir.vestra.shared.cloud.CloudModelContracts
+import com.zakir.vestra.shared.cloud.GenerationBatch
+import com.zakir.vestra.shared.cloud.GenerationCandidate
 import com.zakir.vestra.shared.cloud.GenerativeAssists
 import com.zakir.vestra.shared.cloud.GenerativeCloudService
 import com.zakir.vestra.shared.cloud.GenerativeState
@@ -41,6 +43,9 @@ data class StudioFeedItem(
     val state: GenerativeState? = null,
     val liveLog: List<String> = emptyList(),
     val generationStartedAtMs: Long? = null,
+    val imageBatch: GenerationBatch? = null,
+    val selectedCandidateId: String? = null,
+    val parentCandidateId: String? = null,
 )
 
 @OptIn(ExperimentalUuidApi::class)
@@ -429,7 +434,9 @@ class GenerativeViewModel(
 
     fun localVideoOfflineReady(): Boolean = generative.localVideoReady()
 
-    fun generateImage() {
+    fun generateImage() = generateImageCandidates()
+
+    private fun generateImageCandidates(parentCandidateId: String? = null) {
         val p = sanitizePrompt(_prompt.value)
         if (p.isEmpty()) {
             _preflightMessage.value = "Enter a prompt describing the image."
@@ -468,14 +475,56 @@ class GenerativeViewModel(
         } else {
             "Local SD-Turbo (offline)"
         }
+        val reference = _referenceUri.value
+        val assists = currentAssists()
         startGeneration(
-            capability = if (_referenceUri.value == null) RunCapability.IMAGE_GEN else RunCapability.IMAGE_EDIT,
+            capability = if (reference == null) RunCapability.IMAGE_GEN else RunCapability.IMAGE_EDIT,
             modelLabel = if (bypassPreflight) localLabel else appSettings.selectedProvider(capability).displayName,
             local = bypassPreflight,
             studio = capability,
+            parentCandidateId = parentCandidateId,
         ) {
-            generative.generateImage(p, _referenceUri.value, currentAssists())
+            generateImageBatch(
+                service = generative,
+                prompt = p,
+                referenceUri = reference,
+                assists = assists,
+                candidateCount = DEFAULT_IMAGE_CANDIDATES,
+                parentCandidateId = parentCandidateId,
+            )
         }
+    }
+
+    fun selectImageCandidate(feedItemId: String, candidateId: String) {
+        val key = boundKey
+        val updated = _feedItems.value.map { item ->
+            if (item.id != feedItemId) return@map item
+            val batch = item.imageBatch ?: return@map item
+            if (batch.candidates.none { it.id == candidateId }) return@map item
+            val selectedBatch = batch.copy(selectedCandidateId = candidateId)
+            item.copy(
+                state = GenerativeState.ImageBatchReady(selectedBatch),
+                imageBatch = selectedBatch,
+                selectedCandidateId = candidateId,
+            )
+        }
+        _feedItems.value = updated
+        bag(key).feedItems = updated
+        wardrobe.findByCandidateId(candidateId)?.let { selected ->
+            lastEntryIdByStudioKey[key] = selected.id
+        }
+    }
+
+    fun createImageVariation(feedItemId: String, candidateId: String) {
+        val source = _feedItems.value
+            .firstOrNull { it.id == feedItemId }
+            ?.imageBatch
+            ?.candidates
+            ?.firstOrNull { it.id == candidateId }
+            ?: return
+        _prompt.value = source.prompt
+        _referenceUri.value = source.path
+        generateImageCandidates(parentCandidateId = source.id)
     }
 
     fun generateCode() {
@@ -677,6 +726,7 @@ class GenerativeViewModel(
         modelLabel: String?,
         studio: AiCapability,
         local: Boolean,
+        parentCandidateId: String? = null,
         block: () -> kotlinx.coroutines.flow.Flow<GenerativeState>,
     ) {
         job?.cancel()
@@ -705,6 +755,7 @@ class GenerativeViewModel(
             state = GenerativeState.Preparing("Starting…"),
             liveLog = emptyList(),
             generationStartedAtMs = startedAt,
+            parentCandidateId = parentCandidateId,
         )
         val initialFeed = bag(studioKey).feedItems + feedItem
         bag(studioKey).feedItems = initialFeed
@@ -760,12 +811,19 @@ class GenerativeViewModel(
                         // Update feed items for the owning bag
                         val owningBag = bag(studioKey)
                         val updatedFeed = owningBag.feedItems.map { it ->
-                            if (it.id == feedItem.id) {
-                                it.copy(
+                            if (it.id != feedItem.id) return@map it
+                            when (next) {
+                                is GenerativeState.ImageBatchReady -> it.copy(
+                                    state = next,
+                                    liveLog = _liveLog.value,
+                                    imageBatch = next.batch,
+                                    selectedCandidateId = next.batch.selectedCandidateId,
+                                )
+                                else -> it.copy(
                                     state = next,
                                     liveLog = _liveLog.value,
                                 )
-                            } else it
+                            }
                         }
                         owningBag.feedItems = updatedFeed
                         if (boundKey == studioKey) {
@@ -778,11 +836,14 @@ class GenerativeViewModel(
                             owner.state = next
                             when (next) {
                                 is GenerativeState.ImageReady,
+                                is GenerativeState.ImageBatchReady,
                                 is GenerativeState.VideoReady,
                                 is GenerativeState.AudioReady,
                                 is GenerativeState.CodeReady,
                                 -> owner.lastUsedProviderId = when (next) {
                                     is GenerativeState.ImageReady -> next.providerId
+                                    is GenerativeState.ImageBatchReady ->
+                                        next.batch.selectedCandidate?.providerId ?: owner.lastUsedProviderId
                                     is GenerativeState.VideoReady -> next.providerId
                                     is GenerativeState.AudioReady -> next.providerId
                                     is GenerativeState.CodeReady -> next.providerId
@@ -832,6 +893,29 @@ class GenerativeViewModel(
                                         "$studioTitle Ready ✨",
                                         "Your AI image has been created! Tap to view.",
                                         imagePath = next.path,
+                                        isFailure = false,
+                                        deepLinkRoute = "studio",
+                                    )
+                                }
+                            }
+                            is GenerativeState.ImageBatchReady -> {
+                                val selected = next.batch.selectedCandidate ?: return@collect
+                                appendLive(
+                                    "${next.batch.candidates.size}/${next.batch.requestedCandidateCount} candidates ready",
+                                )
+                                _lastUsedProviderId.value = selected.providerId
+                                ingestImageBatch(next.batch, studioKey = studioKey, local = local)
+                                builder?.complete(
+                                    success = true,
+                                    note = "${selected.providerId} · batch ${next.batch.candidates.size}/${next.batch.requestedCandidateCount}",
+                                )
+                                completeLocalJob(success = true)
+                                context?.let { ctx ->
+                                    com.zakir.vestra.service.GenerationForegroundService.complete(
+                                        ctx,
+                                        "$studioTitle Ready ✨",
+                                        "${next.batch.candidates.size} image candidates are ready to compare.",
+                                        imagePath = selected.path,
                                         isFailure = false,
                                         deepLinkRoute = "studio",
                                     )
@@ -984,6 +1068,53 @@ class GenerativeViewModel(
 
     /** Previous Wardrobe entry generated in each studio tab — chains consecutive retries. */
     private val lastEntryIdByStudioKey = mutableMapOf<AiCapability, String>()
+    private val persistedCandidateIds = mutableSetOf<String>()
+
+    private fun ingestImageBatch(
+        batch: GenerationBatch,
+        studioKey: AiCapability,
+        local: Boolean,
+    ) {
+        val inheritedParentEntryId = batch.parentCandidateId
+            ?.let { wardrobe.findByCandidateId(it)?.id }
+            ?: lastEntryIdByStudioKey[studioKey]
+        var selectedEntryId: String? = null
+
+        batch.candidates.forEach { candidate ->
+            if (!persistedCandidateIds.add(candidate.id)) {
+                if (candidate.id == batch.selectedCandidateId) {
+                    selectedEntryId = wardrobe.findByCandidateId(candidate.id)?.id
+                }
+                return@forEach
+            }
+            val entryId = Uuid.random().toString()
+            runCatching {
+                wardrobe.add(
+                    WardrobeEntry(
+                        id = entryId,
+                        createdAtEpochMillis = candidate.createdAtEpochMillis,
+                        imagePath = candidate.path,
+                        garmentUri = "create:${candidate.prompt.take(80)}",
+                        personLabel = "Candidate ${candidate.candidateIndex + 1}",
+                        tier = if (local) EngineTier.LITE else EngineTier.CLOUD,
+                        shootId = batch.id,
+                        parentGenerationId = inheritedParentEntryId,
+                        batchId = batch.id,
+                        candidateId = candidate.id,
+                        parentCandidateId = candidate.parentCandidateId,
+                        candidateIndex = candidate.candidateIndex,
+                        candidateCount = candidate.candidateCount,
+                        prompt = candidate.prompt,
+                        providerId = candidate.providerId,
+                        seed = candidate.seed,
+                    ),
+                )
+            }
+            if (candidate.id == batch.selectedCandidateId) selectedEntryId = entryId
+        }
+
+        selectedEntryId?.let { lastEntryIdByStudioKey[studioKey] = it }
+    }
 
     private fun ingestCreateImage(path: String, label: String, studioKey: AiCapability, local: Boolean) {
         val promptSnippet = _prompt.value.trim().take(80).ifBlank { label.lowercase() }
@@ -1017,5 +1148,6 @@ class GenerativeViewModel(
 
     private companion object {
         const val MAX_PROMPT = 4000
+        const val DEFAULT_IMAGE_CANDIDATES = 2
     }
 }
