@@ -6,6 +6,11 @@ build/
 # Local config
 local.properties
 
+# Local credentials and provider configuration
+.env
+.env.*
+!.env.example
+
 # IDE
 .idea/
 *.iml
