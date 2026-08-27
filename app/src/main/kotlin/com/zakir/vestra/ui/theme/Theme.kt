@@ -75,12 +75,12 @@ data class VestraPalette(
 
 val LocalVestraPalette = staticCompositionLocalOf { LightPalette }
 
-// Pearl day (#F8FAFC) · slate ink (#0F172A) · warm gold (#D97706)
+// Soft lilac canvas (#FAF5FF) · slate ink (#111827) · violet primary · cyan secondary
 private val LightPalette = VestraPalette(
-    canvas = Color(0xFFF8FAFC),
+    canvas = Color(0xFFFAF5FF),
     surface = Color(0xFFFFFFFF),
     surfaceRaised = Color(0xFFF5F3FF),
-    surfaceFloating = Color(0xFFEEF2FF),
+    surfaceFloating = Color(0xFFECFEFF),
     ink = Color(0xFF111827),
     inkMuted = Color(0xFF4B5563),
     accent = Color(0xFF7C3AED),
@@ -99,13 +99,13 @@ private val LightPalette = VestraPalette(
     saffronDeep = Color(0xFF4F46E5),
     silkMist = Color(0xFFE0E7FF),
     modalityImage = Color(0xFF7C3AED),
-    modalityVideo = Color(0xFFEC4899),
+    modalityVideo = Color(0xFF06B6D4),
     modalityCode = Color(0xFF0891B2),
     modalityAudio = Color(0xFFF97316),
     isDark = false,
 )
 
-// Obsidian night (#0B0F19) · slate surface (#131C2E) · crisp white ink (#FFFFFF) · radiant gold (#F59E0B)
+// Obsidian night (#080B14) · graphite surfaces · bright ink · softened violet/cyan accents
 private val DarkPalette = VestraPalette(
     canvas = Color(0xFF080B14),
     surface = Color(0xFF111827),

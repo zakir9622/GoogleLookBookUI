@@ -68,7 +68,7 @@ import com.zakir.vestra.ui.theme.VestraShapes
 import com.zakir.vestra.ui.theme.VestraSpacing
 import com.zakir.vestra.ui.util.rememberReduceMotion
 
-/** Full-screen spatial canvas with breathing saffron orbs behind content. */
+/** Full-screen spatial canvas with restrained creative light behind content. */
 @Composable
 fun SpatialBackground(
     modifier: Modifier = Modifier,
@@ -116,8 +116,8 @@ fun SpatialBackground(
                     .background(
                         Brush.radialGradient(
                             colors = listOf(
-                                VestraColors.AccentSoft.copy(alpha = 0.32f),
-                                VestraColors.Accent.copy(alpha = 0.06f),
+                                VestraColors.ModalityVideo.copy(alpha = 0.22f),
+                                VestraColors.Accent.copy(alpha = 0.05f),
                                 Color.Transparent,
                             ),
                         ),
@@ -136,7 +136,7 @@ fun SpatialBackground(
                     .background(
                         Brush.radialGradient(
                             colors = listOf(
-                                VestraColors.Accent.copy(alpha = 0.2f),
+                                VestraColors.ModalityCode.copy(alpha = 0.14f),
                                 Color.Transparent,
                             ),
                         ),
