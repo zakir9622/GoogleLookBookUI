@@ -128,7 +128,7 @@ jobs:
           test -n "$APK"
           TAG="debug-${GITHUB_RUN_NUMBER}-${GITHUB_SHA:0:7}"
           APK_NAME="GoogleLookBookUI-${TAG}.apk"
-          cp "$APK" "dist/$APK_NAME"
+          mv "$APK" "dist/$APK_NAME"
           sha256sum "dist/$APK_NAME" | tee "dist/$APK_NAME.sha256"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
