@@ -71,6 +71,7 @@ import com.zakir.vestra.ui.components.ModelPickerSheet
 import com.zakir.vestra.ui.components.OnDevicePickerEntry
 import com.zakir.vestra.ui.components.PromptComposer
 import com.zakir.vestra.ui.components.PromptCurator
+import com.zakir.vestra.ui.components.PromptDirectorSheet
 import com.zakir.vestra.ui.components.ResultPane
 import com.zakir.vestra.ui.theme.VestraColors
 import kotlinx.coroutines.Dispatchers
