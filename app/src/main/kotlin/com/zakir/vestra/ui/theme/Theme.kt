@@ -184,7 +184,7 @@ private fun VestraPalette.toScheme() = if (isDark) {
         onPrimaryContainer = Color(0xFFF5F3FF),
         secondary = Color(0xFFF472B6),
         onSecondary = Color(0xFF1F1027),
-        secondaryContainer = secondary.copy(alpha = 0.22f),
+        secondaryContainer = Color(0xFFF472B6).copy(alpha = 0.22f),
         onSecondaryContainer = Color(0xFFFCE7F3),
         tertiary = saffronDeep,
         onTertiary = Color(0xFF0C1A2A),
