@@ -261,6 +261,28 @@ internal fun LazyListScope.settingsCloudKeysSection(
                 }
             }
 
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    importTokensLauncher.launch(
+                        arrayOf("application/json", "text/plain", "text/*"),
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Outlined.Public, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (durableReady) "Or choose a token file" else "Choose a token file",
+                )
+            }
+            Text(
+                "Supports tokens.json, api_keys.json, tokens.txt, api_keys.txt, and hf_token.txt. Values remain on this device.",
+                style = MaterialTheme.typography.labelSmall,
+                color = VestraColors.InkMuted,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+
             Button(
                 onClick = onSaveTokens,
                 shape = RoundedCornerShape(24.dp),

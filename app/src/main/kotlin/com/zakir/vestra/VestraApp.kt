@@ -195,7 +195,8 @@ class VestraApp : Application(), SingletonImageLoader.Factory {
             this,
             liteEngineIo,
             http,
-            applyVisibleWatermark = true, // always stamp AI provenance on cloud outputs
+            // Keep machine-readable provenance while leaving creator-visible image pixels unobstructed.
+            applyVisibleWatermark = false,
         )
         val generationsDir = java.io.File(filesDir, "generations").also { it.mkdirs() }
         val localImageGen = com.zakir.vestra.shared.engine.local.AndroidLocalImageGenerator(
