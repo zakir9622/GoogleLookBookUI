@@ -64,7 +64,7 @@ private const val PRIVACY_BODY =
         "On your device\n" +
         "• Photos you pick or capture are processed on-device when using Lite or Pro packs. " +
         "They stay in app-private storage (or Documents/TheLookbook when durable storage is enabled).\n" +
-        "• Generated looks are marked AI-generated (watermark on store builds + metadata).\n" +
+        "• Generated looks retain AI-origin metadata; the app also discloses their origin in the result view without stamping the image pixels.\n" +
         "• Deleting the app removes private storage; durable Documents copies remain until you delete them.\n\n" +
         "Optional free-tier cloud\n" +
         "• Only when you select Cloud try-on or run Image / Video / Code studio: prompt text and " +
