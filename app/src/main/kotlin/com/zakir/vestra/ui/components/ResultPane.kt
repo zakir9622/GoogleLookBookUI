@@ -248,6 +248,14 @@ fun ResultPane(
                         color = VestraColors.Accent,
                     )
                 }
+                batch.selectedCandidate?.referenceReceipt?.let { receipt ->
+                    Spacer(Modifier.height(7.dp))
+                    GlassPill(
+                        text = "Reference used · ${receipt.requestMode}",
+                        active = true,
+                        accent = VestraColors.Accent,
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
                 ImageCandidateGrid(
                     batch = batch,
@@ -416,4 +424,3 @@ fun ResultPane(
         }
     }
 }
-

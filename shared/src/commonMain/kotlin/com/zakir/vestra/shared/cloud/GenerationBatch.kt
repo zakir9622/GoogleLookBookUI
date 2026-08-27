@@ -2,6 +2,14 @@ package com.zakir.vestra.shared.cloud
 
 import kotlinx.serialization.Serializable
 
+/** Immutable receipt describing a reference image supplied to a successful visual request. */
+@Serializable
+data class ReferenceReceipt(
+    val sourceUri: String,
+    val requestMode: String,
+    val attachedAtEpochMillis: Long,
+)
+
 /**
  * One image produced within a Creative Studio generation batch.
  *
@@ -21,6 +29,8 @@ data class GenerationCandidate(
     val candidateCount: Int,
     val parentCandidateId: String? = null,
     val seed: Long? = null,
+    /** Present only after a reference image was attached to an image-to-image request. */
+    val referenceReceipt: ReferenceReceipt? = null,
 )
 
 /** Immutable batch snapshot emitted after the requested candidates have completed. */
