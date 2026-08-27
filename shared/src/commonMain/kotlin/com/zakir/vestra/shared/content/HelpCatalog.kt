@@ -5,18 +5,18 @@ package com.zakir.vestra.shared.content
  */
 object LookbookCopy {
     const val PRODUCT_NAME = "The Lookbook"
-    const val PRODUCT_TAGLINE = "Modest fashion atelier · on-device AI"
+    const val PRODUCT_TAGLINE = "Private AI creation studio · on-device first"
     const val PRODUCT_BLURB =
-        "Modest fashion atelier with true on-device AI. Try-on, Image Create/Edit, Video still-clips, " +
-            "Code (Gemma), and Speak run offline after you download Model packs — cloud studios stay optional."
+        "Create, remix, and organize images, try-on looks, clips, code, and voice from one private AI workspace. " +
+            "On-device engines work offline after model packs are installed; cloud providers stay optional and explicit."
 
-    const val STUDIO_HOME = "Atelier"
-    const val STUDIO_TRY_ON = "Virtual try-on"
+    const val STUDIO_HOME = "Create"
+    const val STUDIO_TRY_ON = "Try-on studio"
     const val STUDIO_IMAGE = "Image studio"
-    const val STUDIO_VIDEO = "Clip studio"
+    const val STUDIO_VIDEO = "Video studio"
     const val STUDIO_CODE = "Code studio"
-    const val STUDIO_AUDIO = "Audio studio"
-    const val STUDIO_WARDROBE = "Looks gallery"
+    const val STUDIO_AUDIO = "Voice studio"
+    const val STUDIO_WARDROBE = "Creative library"
     const val STUDIO_PACKS = "Model packs"
     const val STUDIO_USAGE = "Cloud usage"
     const val STUDIO_SETTINGS = "Settings"
@@ -26,7 +26,7 @@ object LookbookCopy {
     const val ACTION_GENERATE = "Generate"
     const val ACTION_CANCEL_GENERATION = "Cancel generation"
     const val ACTION_RETRY = "Retry"
-    const val ACTION_BACK_ATELIER = "Back to atelier"
+    const val ACTION_BACK_ATELIER = "Back to studio"
     const val ACTION_SAVE_TOKENS = "Save API keys"
     const val ACTION_OPEN_HELP = "Open Help & FAQ"
     const val ACTION_OPEN_PRIVACY = "Privacy policy"
@@ -39,9 +39,9 @@ object LookbookCopy {
     const val ACTION_OPEN_VIDEO = "Open"
     const val ACTION_SHOW_ALL_LOOKS = "Show all looks"
 
-    const val LABEL_VIRTUAL_TRY_ON = "VIRTUAL TRY-ON"
-    const val EMPTY_GALLERY = "Your try-on and Image studio looks appear here."
-    const val EMPTY_FAVORITES = "No favorites yet — tap ★ on a look."
+    const val LABEL_VIRTUAL_TRY_ON = "TRY-ON STUDIO"
+    const val EMPTY_GALLERY = "Your generated images, try-on results, clips, and creative recipes will appear here."
+    const val EMPTY_FAVORITES = "No favorites yet — save a result to build your creative signal library."
     const val PRIVACY_URL =
         "https://github.com/zakir9622/Agentic-AI/blob/main/docs/PRIVACY_POLICY.md"
 
@@ -79,7 +79,7 @@ object HelpCatalog {
             id = "start-tryon",
             category = "Getting started",
             question = "How do I run a virtual try-on?",
-            answer = "From the Atelier home screen, tap Start try-on (or the Try-on control on the bottom rail). " +
+            answer = "From the Create home screen, tap Start try-on (or the Try-on control on the bottom rail). " +
                 "Choose a garment photo, optional casting profile, then a person source. " +
                 "Generation uses your selected local engine (Lite/Pro) or Cloud try-on if you enabled it in Settings.",
         ),

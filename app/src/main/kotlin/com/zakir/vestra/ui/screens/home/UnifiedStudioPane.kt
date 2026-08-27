@@ -220,16 +220,16 @@ fun UnifiedStudioPane(
 
     val moduleDescription = when (capability) {
         AiCapability.IMAGE_GEN ->
-            if (cloudModelsEnabled) "Modest couture lookbooks with tiny-SD and cloud diffusion."
-            else "Modest couture lookbooks with on-device tiny-SD diffusion."
+            if (reference == null) "Create, compare, and refine images with Prompt Director and dynamic style controls."
+            else "Edit a reference with guided intents while preserving the subject and visual direction."
         AiCapability.VIDEO ->
-            if (cloudModelsEnabled) "Motion sequences and runway clips via AI video pipelines."
-            else "Motion sequences and runway clips with local video pipelines."
+            if (cloudModelsEnabled) "Shape short motion studies with camera language, rhythm, and atmosphere."
+            else "Build lightweight motion studies with local-first video tools."
         AiCapability.CODE ->
-            if (cloudModelsEnabled) "Kotlin Compose UI and architecture with on-device & cloud LLMs."
-            else "Kotlin Compose UI and architecture with on-device Gemma LLMs."
+            if (cloudModelsEnabled) "Turn product intent into focused code, UI concepts, and implementation steps."
+            else "Explore and prototype code privately with an on-device language model."
         AiCapability.AUDIO ->
-            "Speech synthesis and real-time DSP voice transformations."
+            "Design voice, narration, and sound texture with guided on-device tools."
         else -> "Generative AI studio."
     }
 
