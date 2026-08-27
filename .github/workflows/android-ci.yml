@@ -139,6 +139,7 @@ jobs:
         run: |
           set -euo pipefail
           gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "GoogleLookBookUI Debug $TAG" \
             --prerelease \
