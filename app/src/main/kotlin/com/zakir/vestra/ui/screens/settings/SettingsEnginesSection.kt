@@ -141,10 +141,10 @@ internal fun LazyListScope.settingsEnginesSection(
         Spacer(Modifier.height(8.dp))
     }
 
-    localPackChoices.forEach { entry ->
+    localPackChoices.distinctBy { it.packId ?: it.id }.forEachIndexed { index, entry ->
         val packId = entry.packId
         if (packId != null) {
-            item(key = "model-pack-$packId") {
+            item(key = "model-pack-${entry.id}_${packId}_$index") {
                 val packState = packStates[packId]
                 OnDeviceModelCard(
                     entry = entry,

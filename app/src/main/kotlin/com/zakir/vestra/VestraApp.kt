@@ -30,6 +30,7 @@ import com.zakir.vestra.shared.packs.AndroidPackFileSystem
 import com.zakir.vestra.shared.packs.AndroidPackIntegrityChecker
 import com.zakir.vestra.shared.packs.ModelPackManager
 import com.zakir.vestra.shared.packs.PackDownloadWorker
+import com.zakir.vestra.shared.engine.local.Gemma4PrewarmWorker
 import com.zakir.vestra.shared.platformHttpClient
 import com.zakir.vestra.shared.quality.createQualityPostProcessor
 import com.zakir.vestra.shared.chat.ChatRepository
@@ -168,6 +169,9 @@ class VestraApp : Application(), SingletonImageLoader.Factory {
             },
         )
         PackDownloadWorker.dependencies = { packManager }
+        Gemma4PrewarmWorker.dependencies = { packManager }
+        Gemma4PrewarmWorker.gpuPreference = { appSettings.preferLiteRtLmGpu.value }
+        Gemma4PrewarmWorker.schedulePeriodic(this)
         appScope.launch {
             packManager.refresh(networkAllowed = isNetworkAvailable(this@VestraApp))
             // Seed bundled lite pack before verification so we never ONNX-load a half-written copy.

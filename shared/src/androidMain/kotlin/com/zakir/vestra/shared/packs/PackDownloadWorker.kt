@@ -116,6 +116,11 @@ class PackDownloadWorker(
             }
 
             return if (manager.completeInstall(packId, stagingDir.absolutePath)) {
+                if (packId == com.zakir.vestra.shared.engine.local.LiteRtLmPacks.GEMMA4_CODE) {
+                    runCatching {
+                        com.zakir.vestra.shared.engine.local.Gemma4PrewarmWorker.enqueueOneTime(applicationContext, packId)
+                    }
+                }
                 Result.success()
             } else {
                 stagingDir.deleteRecursively()

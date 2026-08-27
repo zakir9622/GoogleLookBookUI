@@ -3,6 +3,8 @@ package com.zakir.vestra.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,24 +17,34 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Layers
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,20 +54,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.zakir.vestra.ui.TestTags
+import com.zakir.vestra.ui.theme.RadiusTokens
 import com.zakir.vestra.ui.theme.VestraColors
 
 /**
- * Isolated floating spatial generation dock — combines prompt input, model selector pill,
- * input file attachment, assist controls, and an integrated live telemetry box with countdown.
+ * Clean, modern, clutter-free Gemini-style input capsule.
+ * Keeps the screen spacious and unobstructed, cleanly docking right above the keyboard.
  */
 @Composable
 fun PromptComposer(
@@ -70,7 +87,7 @@ fun PromptComposer(
     onSend: () -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "Describe the look…",
+    placeholder: String = "Ask Lookbook or describe look…",
     referenceUri: String? = null,
     onAddReference: (() -> Unit)? = null,
     onClearReference: (() -> Unit)? = null,
@@ -86,13 +103,20 @@ fun PromptComposer(
     onAddAttachment: ((AttachmentItem) -> Unit)? = null,
     onRemoveAttachment: ((AttachmentItem) -> Unit)? = null,
 ) {
-    var showAttachmentSheet by remember { mutableStateOf(false) }
+    var showOptionsSheet by remember { mutableStateOf(false) }
     var localAttachments by remember { mutableStateOf<List<AttachmentItem>>(emptyList()) }
     val effectiveAttachments = if (attachments.isNotEmpty()) attachments else localAttachments
 
-    if (showAttachmentSheet) {
-        AttachmentOptionsSheet(
-            onDismiss = { showAttachmentSheet = false },
+    // Plus (+) Menu Sheet: Attachments, Model Switcher, and Generation Assists
+    if (showOptionsSheet) {
+        ComposerPlusSheet(
+            modelLabel = modelLabel,
+            onModelClick = onModelClick,
+            assistCount = assistCount,
+            onAssistsClick = onAssistsClick,
+            modelLoading = modelLoading,
+            assistToggles = assistToggles,
+            onDismiss = { showOptionsSheet = false },
             onAttachmentAdded = { item ->
                 if (onAddAttachment != null) {
                     onAddAttachment(item)
@@ -102,264 +126,203 @@ fun PromptComposer(
             },
         )
     }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
             .imePadding()
             .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
-        // Quick Prompts Horizontal Chip Carousel above persistent dock
-        if (quickPrompts.isNotEmpty() && onSelectQuickPrompt != null && !busy) {
+        // Quick Prompts row (only when prompt is empty and idle)
+        if (quickPrompts.isNotEmpty() && onSelectQuickPrompt != null && !busy && prompt.isBlank() && referenceUri == null && effectiveAttachments.isEmpty()) {
             QuickPromptCarousel(
                 prompts = quickPrompts,
                 onSelectPrompt = onSelectQuickPrompt,
                 enabled = enabled && !busy,
             )
+            Spacer(Modifier.height(6.dp))
         }
 
-        // On-Device Hardware Thermal & Battery Warning Indicator
-        val deviceHealth = rememberDeviceHealth()
-        ThermalBatteryWarningCard(
-            health = deviceHealth,
-            modifier = Modifier.padding(bottom = 6.dp),
-        )
-
-        // Attached Live Telemetry & Countdown Box (Above input controls in the dock)
-        if (showLiveDock && (busy || liveLog.isNotEmpty())) {
-            LiveGenConsole(
-                lines = liveLog,
-                generationStartedAtMs = generationStartedAtMs,
-                deadlineEpochMs = deadlineEpochMs,
-                collapsible = true,
-                defaultExpanded = true,
+        // Compact Attached Media Strip (takes minimal space when active)
+        if (effectiveAttachments.isNotEmpty()) {
+            AttachmentThumbnailBar(
+                attachments = effectiveAttachments,
+                onRemoveAttachment = { item ->
+                    if (onRemoveAttachment != null) {
+                        onRemoveAttachment(item)
+                    } else {
+                        localAttachments = localAttachments - item
+                    }
+                },
             )
-            Spacer(Modifier.height(8.dp))
-        }
-
-        val shape = RoundedCornerShape(26.dp)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .background(VestraColors.SurfaceRaised)
-                .border(
-                    1.dp,
-                    Brush.verticalGradient(
-                        listOf(VestraColors.GlassHighlight, VestraColors.Accent.copy(alpha = 0.35f)),
-                    ),
-                    shape,
-                )
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-        ) {
-            // Attached media preview or upload slot
-            if (effectiveAttachments.isNotEmpty()) {
-                AttachmentThumbnailBar(
-                    attachments = effectiveAttachments,
-                    onRemoveAttachment = { item ->
-                        if (onRemoveAttachment != null) {
-                            onRemoveAttachment(item)
-                        } else {
-                            localAttachments = localAttachments - item
-                        }
-                    },
-                )
-                Spacer(Modifier.height(8.dp))
-            } else if (onAddReference != null || referenceUri != null) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+            Spacer(Modifier.height(6.dp))
+        } else if (referenceUri != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.dp, VestraColors.Accent.copy(alpha = 0.6f), RoundedCornerShape(12.dp)),
                 ) {
-                    referenceUri?.let { uri ->
+                    AsyncImage(
+                        model = referenceUri,
+                        contentDescription = "Reference",
+                        modifier = Modifier
+                            .size(46.dp)
+                            .testTag(TestTags.REFERENCE_IMAGE_THUMB),
+                        contentScale = ContentScale.Crop,
+                    )
+                    if (onClearReference != null) {
                         Box(
                             modifier = Modifier
-                                .size(54.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .border(1.dp, VestraColors.Accent.copy(alpha = 0.6f), RoundedCornerShape(12.dp)),
-                        ) {
-                            AsyncImage(
-                                model = uri,
-                                contentDescription = "Reference",
-                                modifier = Modifier
-                                    .size(54.dp)
-                                    .testTag(TestTags.REFERENCE_IMAGE_THUMB),
-                                contentScale = ContentScale.Crop,
-                            )
-                            if (onClearReference != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .align(Alignment.TopEnd)
-                                        .clip(CircleShape)
-                                        .background(VestraColors.Canvas.copy(alpha = 0.85f))
-                                        .clickable { onClearReference() },
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        Icons.Outlined.Close,
-                                        contentDescription = "Clear reference",
-                                        modifier = Modifier.size(12.dp),
-                                        tint = VestraColors.Ink,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    if (onAddReference != null && referenceUri == null) {
-                        Box(
-                            Modifier
-                                .size(50.dp)
-                                .testTag(TestTags.ADD_REFERENCE_BUTTON)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(VestraColors.GlassFill)
-                                .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(12.dp))
-                                .clickable(enabled = !busy) { showAttachmentSheet = true },
+                                .size(18.dp)
+                                .align(Alignment.TopEnd)
+                                .clip(CircleShape)
+                                .background(VestraColors.Canvas.copy(alpha = 0.85f))
+                                .clickable { onClearReference() },
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                Icons.Outlined.AttachFile,
-                                contentDescription = "Attach files, gallery, or camera",
-                                tint = VestraColors.Accent,
-                                modifier = Modifier.size(22.dp),
+                                Icons.Outlined.Close,
+                                contentDescription = "Clear reference",
+                                modifier = Modifier.size(10.dp),
+                                tint = VestraColors.Ink,
                             )
                         }
                     }
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Reference image attached",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = VestraColors.InkMuted,
+                )
             }
+        }
 
-            // Text input
-            OutlinedTextField(
-                value = prompt,
-                onValueChange = onPromptChange,
+        // Sleek Gemini Floating Capsule Bar
+        val capsuleShape = RoundedCornerShape(30.dp)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = capsuleShape,
+            color = VestraColors.GlassFillStrong,
+            shadowElevation = 3.dp,
+        ) {
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag(TestTags.PROMPT_INPUT),
-                enabled = !busy,
-                minLines = 2,
-                maxLines = 5,
-                placeholder = {
-                    Text(
-                        if (modelLoading) "Initializing model weights…" else placeholder,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = VestraColors.InkMuted.copy(alpha = 0.7f),
-                    )
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = VestraColors.Accent.copy(alpha = 0.55f),
-                    unfocusedBorderColor = VestraColors.GlassBorder,
-                    focusedContainerColor = VestraColors.GlassFill,
-                    unfocusedContainerColor = VestraColors.GlassFill,
-                    focusedTextColor = VestraColors.Ink,
-                    unfocusedTextColor = VestraColors.Ink,
-                ),
-                shape = RoundedCornerShape(16.dp),
-            )
-
-            // Auto-detected parameter badges from user prompt
-            val detectedBadges = androidx.compose.runtime.remember(prompt) {
-                com.zakir.vestra.shared.prompt.PromptParameterEngine.detectParameterBadges(prompt)
-            }
-            if (detectedBadges.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "AUTO-PARAMS",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 9.sp,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                            letterSpacing = 0.5.sp,
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                VestraColors.GlassHighlight,
+                                VestraColors.Accent.copy(alpha = 0.35f),
+                            ),
                         ),
-                        color = VestraColors.Accent,
-                        modifier = Modifier.padding(end = 2.dp),
+                        shape = capsuleShape,
                     )
-                    detectedBadges.forEach { badge ->
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(VestraColors.Accent.copy(alpha = 0.15f))
-                                .border(1.dp, VestraColors.Accent.copy(alpha = 0.35f), RoundedCornerShape(50))
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
-                        ) {
-                            Text(
-                                badge,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                color = VestraColors.Ink,
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Assist Toggles Row
-            if (assistToggles != null) {
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    assistToggles()
-                }
-            }
-
-            // Bottom action row: Model Pill + Attach button + Assists Counter + Voice Dictation + Send Orb
-            Spacer(Modifier.height(10.dp))
-            Row(
-                Modifier.fillMaxWidth(),
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                ModelChip(
-                    label = modelLabel,
-                    onClick = onModelClick,
-                    loading = modelLoading,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag(TestTags.MODEL_CHIP),
-                )
-                // Attach button
+                // Left: Plus Action Button (+ Menu for attachments, models & assists)
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
-                        .background(if (effectiveAttachments.isNotEmpty()) VestraColors.Accent.copy(alpha = 0.2f) else VestraColors.GlassFill)
-                        .border(
-                            1.dp,
-                            if (effectiveAttachments.isNotEmpty()) VestraColors.Accent else VestraColors.GlassBorder,
-                            CircleShape,
+                        .background(
+                            if (effectiveAttachments.isNotEmpty() || referenceUri != null || assistCount > 0) {
+                                VestraColors.Accent.copy(alpha = 0.18f)
+                            } else {
+                                VestraColors.GlassFill
+                            },
                         )
-                        .clickable(enabled = !busy) { showAttachmentSheet = true },
+                        .clickable(enabled = !busy) {
+                            if (onAddReference != null && assistToggles == null && onModelClick == null) {
+                                onAddReference()
+                            } else {
+                                showOptionsSheet = true
+                            }
+                        }
+                        .testTag(TestTags.ADD_REFERENCE_BUTTON),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.AttachFile,
-                        contentDescription = "Attach files, gallery, or camera",
-                        tint = if (effectiveAttachments.isNotEmpty()) VestraColors.Accent else VestraColors.InkMuted,
-                        modifier = Modifier.size(18.dp),
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add attachments and options",
+                        tint = if (effectiveAttachments.isNotEmpty() || referenceUri != null) VestraColors.Accent else VestraColors.Ink,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
-                if (onAssistsClick != null || assistCount > 0) {
-                    AssistChip(
-                        count = assistCount,
-                        onClick = onAssistsClick,
-                        modifier = Modifier.testTag(TestTags.ASSIST_CHIP),
+
+                Spacer(Modifier.width(8.dp))
+
+                // Center: Clean, borderless prompt input
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 6.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    BasicTextField(
+                        value = prompt,
+                        onValueChange = onPromptChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag(TestTags.PROMPT_INPUT),
+                        enabled = !busy,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = VestraColors.Ink,
+                            fontSize = 15.sp,
+                            lineHeight = 20.sp,
+                        ),
+                        cursorBrush = SolidColor(VestraColors.Accent),
+                        maxLines = 4,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(
+                            onSend = {
+                                if (prompt.isNotBlank() && enabled && !busy) {
+                                    onSend()
+                                }
+                            },
+                        ),
+                        decorationBox = { innerTextField ->
+                            if (prompt.isEmpty()) {
+                                Text(
+                                    text = if (modelLoading) "Initializing model…" else placeholder,
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        color = VestraColors.InkMuted.copy(alpha = 0.65f),
+                                        fontSize = 15.sp,
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            innerTextField()
+                        },
                     )
                 }
+
+                Spacer(Modifier.width(6.dp))
+
+                // Right: Voice dictation mic
                 VoiceDictationButton(
                     onTranscription = { spoken ->
                         val updated = if (prompt.isBlank()) spoken else "$prompt $spoken"
                         onPromptChange(updated)
                     },
                     enabled = !busy,
+                    modifier = Modifier.size(38.dp),
                 )
+
+                Spacer(Modifier.width(4.dp))
+
+                // Right: Send or Stop Orb
                 SendOrb(
                     busy = busy,
                     enabled = enabled && (busy || prompt.isNotBlank()),
@@ -372,85 +335,207 @@ fun PromptComposer(
     }
 }
 
+/**
+ * Modern modal sheet opened via the (+) plus capsule action.
+ * Aggregates model switching, attachments (Camera, Gallery, Files), and assist toggles in one clean place.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ModelChip(
-    label: String,
-    onClick: (() -> Unit)?,
-    loading: Boolean = false,
-    modifier: Modifier = Modifier,
+private fun ComposerPlusSheet(
+    modelLabel: String,
+    onModelClick: (() -> Unit)?,
+    assistCount: Int,
+    onAssistsClick: (() -> Unit)?,
+    modelLoading: Boolean,
+    assistToggles: (@Composable () -> Unit)?,
+    onDismiss: () -> Unit,
+    onAttachmentAdded: (AttachmentItem) -> Unit,
 ) {
-    val shape = RoundedCornerShape(50)
-    val a11y = if (onClick != null) {
-        "Selected model $label. Opens model picker."
-    } else {
-        "Selected model $label"
-    }
-    Row(
-        modifier
-            .clip(shape)
-            .background(VestraColors.GlassFill)
-            .border(1.dp, if (loading) VestraColors.Accent else VestraColors.Accent.copy(alpha = 0.4f), shape)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .semantics { contentDescription = a11y }
-            .padding(horizontal = 12.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (loading) {
-            androidx.compose.material3.CircularProgressIndicator(
-                modifier = Modifier.size(10.dp),
-                strokeWidth = 1.5.dp,
-                color = VestraColors.Accent,
-            )
-        } else {
-            Box(
-                Modifier
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(VestraColors.Accent),
-            )
-        }
-        Spacer(Modifier.width(7.dp))
-        Text(
-            if (loading) "Loading $label…" else label,
-            style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
-            color = VestraColors.Ink,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
-        )
-    }
-}
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showAttachmentSheet by remember { mutableStateOf(false) }
 
-@Composable
-private fun AssistChip(count: Int, onClick: (() -> Unit)?, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(50)
-    val a11y = when {
-        count <= 0 -> "No assists active"
-        count == 1 -> "1 assist active"
-        else -> "$count assists active"
+    if (showAttachmentSheet) {
+        AttachmentOptionsSheet(
+            onDismiss = {
+                showAttachmentSheet = false
+                onDismiss()
+            },
+            onAttachmentAdded = { item ->
+                onAttachmentAdded(item)
+                showAttachmentSheet = false
+                onDismiss()
+            },
+        )
     }
-    Row(
-        modifier
-            .clip(shape)
-            .background(VestraColors.GlassFill)
-            .border(1.dp, VestraColors.GlassBorder, shape)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .semantics { contentDescription = a11y }
-            .padding(horizontal = 10.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = VestraColors.SurfaceRaised,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
     ) {
-        Icon(
-            Icons.Outlined.Layers,
-            contentDescription = null,
-            tint = VestraColors.InkMuted,
-            modifier = Modifier.size(15.dp),
-        )
-        Spacer(Modifier.width(5.dp))
-        Text(
-            count.toString(),
-            style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
-            color = VestraColors.Ink,
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+        ) {
+            Text(
+                text = "OPTIONS & ATTACHMENTS",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp,
+                ),
+                color = VestraColors.InkMuted,
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            // Model Switcher Tile
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(16.dp))
+                    .clickable(enabled = onModelClick != null) {
+                        onDismiss()
+                        onModelClick?.invoke()
+                    }
+                    .testTag(TestTags.MODEL_CHIP),
+                color = VestraColors.GlassFill,
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(if (modelLoading) VestraColors.AccentSoft else VestraColors.Accent),
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Active Engine",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = VestraColors.InkMuted,
+                            )
+                            Text(
+                                text = modelLabel,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = VestraColors.Ink,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                    if (onModelClick != null) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = VestraColors.Accent.copy(alpha = 0.12f),
+                        ) {
+                            Text(
+                                text = "Change",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = VestraColors.Accent,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Attachment Actions Tile
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(16.dp))
+                    .clickable { showAttachmentSheet = true },
+                color = VestraColors.GlassFill,
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(VestraColors.Accent.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AttachFile,
+                            contentDescription = null,
+                            tint = VestraColors.Accent,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Add Media or File",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = VestraColors.Ink,
+                        )
+                        Text(
+                            text = "Take a photo, choose from gallery, or attach files",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = VestraColors.InkMuted,
+                        )
+                    }
+                }
+            }
+
+            // Generation Assist Toggles (if provided)
+            if (assistToggles != null) {
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "GENERATION PARAMETERS & ASSISTS",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.2.sp,
+                        ),
+                        color = VestraColors.InkMuted,
+                    )
+                    if (onAssistsClick != null || assistCount > 0) {
+                        Text(
+                            text = "$assistCount active",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = VestraColors.Accent,
+                            ),
+                            modifier = Modifier.testTag(TestTags.ASSIST_CHIP),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    assistToggles()
+                }
+            }
+        }
     }
 }
 
@@ -464,7 +549,7 @@ private fun SendOrb(
 ) {
     Box(
         modifier
-            .size(44.dp)
+            .size(38.dp)
             .clip(CircleShape)
             .background(
                 if (busy) {
@@ -474,8 +559,8 @@ private fun SendOrb(
                 } else {
                     Brush.radialGradient(
                         listOf(
-                            VestraColors.InkMuted.copy(alpha = 0.35f),
-                            VestraColors.InkMuted.copy(alpha = 0.2f),
+                            VestraColors.InkMuted.copy(alpha = 0.25f),
+                            VestraColors.InkMuted.copy(alpha = 0.15f),
                         ),
                     )
                 },
@@ -487,7 +572,7 @@ private fun SendOrb(
             if (busy) Icons.Outlined.Stop else Icons.AutoMirrored.Filled.Send,
             contentDescription = if (busy) "Cancel generation" else "Generate",
             tint = VestraColors.Ivory,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(18.dp),
         )
     }
 }
