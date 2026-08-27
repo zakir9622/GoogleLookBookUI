@@ -55,6 +55,9 @@ jobs:
           java -version
           ./gradlew --version
 
+      - name: Static Kotlin quality baseline
+        run: ./gradlew :app:detekt
+
       - name: Bootstrap Python ML deps
         run: pip install --upgrade pip && pip install onnxruntime numpy huggingface_hub onnx pillow
 
@@ -95,6 +98,14 @@ jobs:
           path: |
             build/screenshots/**/*.png
             app/build/screenshots/**/*.png
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Kotlin static-quality evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotlin-static-quality
+          path: app/build/reports/detekt/**
           if-no-files-found: warn
           retention-days: 14
 

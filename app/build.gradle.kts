@@ -2,6 +2,14 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.detekt)
+}
+
+// Spatial AI quality gate: report current Kotlin findings first, then promote reviewed regressions to failures.
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    ignoreFailures = true
 }
 
 android {
