@@ -356,6 +356,7 @@ fun FullScreenImageViewer(
             }
         }
     }
+}
 
 @Composable
 private fun ViewerActionButton(
