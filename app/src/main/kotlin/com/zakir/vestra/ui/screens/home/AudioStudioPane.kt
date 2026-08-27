@@ -140,7 +140,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class AudioStudioTab(val title: String, val icon: @Composable () -> Unit) {
-    VOICE_CHANGER("Voice Changer", { Icon(Icons.Outlined.RecordVoiceOver, contentDescription = null, modifier = Modifier.size(16.dp)) }),
+    VOICE_CHANGER("Voice Effects", { Icon(Icons.Outlined.RecordVoiceOver, contentDescription = null, modifier = Modifier.size(16.dp)) }),
     CUTTER_TRIM("Audio Cutter", { Icon(Icons.Outlined.ContentCut, contentDescription = null, modifier = Modifier.size(16.dp)) }),
     VOCAL_REMOVER("Vocal Remover", { Icon(Icons.Outlined.MusicNote, contentDescription = null, modifier = Modifier.size(16.dp)) }),
     TRANSCRIBE("Transcribe", { Icon(Icons.Outlined.TextFields, contentDescription = null, modifier = Modifier.size(16.dp)) }),
@@ -342,7 +342,7 @@ fun AudioStudioPane(
             isRecording = false
             if (path != null) {
                 viewModel.setReference(path)
-                recordHint = "Recording saved! Tap any voice below to change voice."
+                        recordHint = "Recording saved. Choose an effect below to shape its sound."
                 refreshClips()
             } else {
                 recordHint = micRecorder.lastFailure ?: "Recording failed"
@@ -366,8 +366,9 @@ fun AudioStudioPane(
     }
 
     /**
-     * Voice Changer Action:
-     * Transforms voice with the preset and IMMEDIATELY auto-plays it.
+     * Voice Effects action:
+     * Applies DSP effects to a source clip and immediately previews the result. This does not
+     * claim to reproduce or clone a real person's identity.
      */
     fun selectAndAutoPlayVoice(preset: VoiceEffectPreset) {
         val inputPath = reference
@@ -382,7 +383,7 @@ fun AudioStudioPane(
         }
 
         isProcessingDsp = true
-        recordHint = "Transforming voice into ${preset.displayName}…"
+        recordHint = "Applying ${preset.displayName} voice effect…"
 
         scope.launch(Dispatchers.IO) {
             val outputDir = File(context.cacheDir, "audio_dsp")
@@ -397,19 +398,20 @@ fun AudioStudioPane(
                 if (result != null && result.exists()) {
                     activeOutputAudio = result
                     activeOutputTitle = "${preset.iconEmoji} ${preset.displayName}"
-                    activeOutputBadge = "Voice Changed"
-                    recordHint = "Playing ${preset.displayName} voice!"
+                    activeOutputBadge = "Voice effect"
+                    recordHint = "Previewing the ${preset.displayName} effect."
                     refreshClips()
                 } else {
-                    recordHint = "Voice changer processing failed."
+                    recordHint = "Voice effect processing failed."
                 }
             }
         }
     }
 
     /**
-     * Custom Voice Changer Action:
-     * Transforms voice with the sample-cloned acoustic profile and auto-plays.
+     * Custom voice-effects action:
+     * Uses the user's saved sound profile to tailor DSP effects and auto-plays the result.
+     * It does not reproduce or clone a real person's vocal identity.
      */
     fun selectAndAutoPlayCustomVoice(profile: CustomVoiceProfile) {
         val inputPath = reference
@@ -424,7 +426,7 @@ fun AudioStudioPane(
         }
 
         isProcessingDsp = true
-        recordHint = "Transforming voice using ${profile.name} acoustic model…"
+        recordHint = "Applying effects using ${profile.name} sound profile…"
 
         scope.launch(Dispatchers.IO) {
             val outputDir = File(context.cacheDir, "audio_dsp")
@@ -439,8 +441,8 @@ fun AudioStudioPane(
                 if (result != null && result.exists()) {
                     activeOutputAudio = result
                     activeOutputTitle = "${profile.emoji} ${profile.name}"
-                    activeOutputBadge = "Custom Voice (${profile.detectedPitchHz.toInt()} Hz)"
-                    recordHint = "Playing ${profile.name} cloned voice!"
+                    activeOutputBadge = "Custom effect (${profile.detectedPitchHz.toInt()} Hz)"
+                    recordHint = "Previewing ${profile.name} voice effects."
                     refreshClips()
                 } else {
                     recordHint = "Custom voice transformation failed."
@@ -559,12 +561,8 @@ fun AudioStudioPane(
 
     val cloudModelsEnabled by viewModel.appSettings.cloudModelsEnabled.collectAsState()
     val pickerModels = remember(freeCloudDiscovery, cloudModelsEnabled) {
-        if (!cloudModelsEnabled) {
-            emptyList()
-        } else {
-            freeCloudDiscovery?.selectable(viewModel.appSettings, AiCapability.AUDIO)
-                ?: CloudModelCatalog.forCapability(AiCapability.AUDIO)
-        }
+        freeCloudDiscovery?.selectable(viewModel.appSettings, AiCapability.AUDIO)
+            ?: CloudModelCatalog.forCapability(AiCapability.AUDIO)
     }
 
     val onDeviceEntries = remember(packStates) {
@@ -931,7 +929,7 @@ fun AudioStudioPane(
 
                         Spacer(Modifier.height(10.dp))
 
-                        // Custom Voice Action Header
+                        // Saved sound-profile action
                         if (selectedVoiceCategory == VoiceCategory.CUSTOM || selectedVoiceCategory == VoiceCategory.ALL) {
                             Row(
                                 modifier = Modifier
@@ -960,12 +958,12 @@ fun AudioStudioPane(
                                     Spacer(Modifier.width(8.dp))
                                     Column {
                                         Text(
-                                            "Clone Custom Voice from Sample",
+                                            "Save Sound Profile from Sample",
                                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                                             color = VestraColors.Ink,
                                         )
                                         Text(
-                                            "Record or upload 3s voice sample to clone acoustic profile",
+                                            "Record or upload a short sample to tailor local voice effects",
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                             color = VestraColors.InkMuted,
                                         )
@@ -973,7 +971,7 @@ fun AudioStudioPane(
                                 }
                                 Icon(
                                     Icons.Default.Add,
-                                    contentDescription = "Create Custom Voice",
+                                    contentDescription = "Create Sound Profile",
                                     tint = VestraColors.Accent,
                                     modifier = Modifier.size(20.dp),
                                 )
@@ -981,10 +979,10 @@ fun AudioStudioPane(
 
                             Spacer(Modifier.height(10.dp))
 
-                            // Custom Cloned Voices Grid
+                            // Saved sound-profile grid
                             if (customVoices.isNotEmpty()) {
                                 Text(
-                                    "SAMPLE-CLONED VOICES (${customVoices.size})",
+                                    "SAVED SOUND PROFILES (${customVoices.size})",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
@@ -1791,7 +1789,7 @@ fun AudioStudioPane(
 
     if (showModelPicker) {
         ModelPickerSheet(
-            title = if (cloudModelsEnabled) "Audio models" else "Audio models · on-device",
+            title = "Audio models",
             models = pickerModels,
             selectedId = audioId.ifBlank { provider.id },
             onSelect = {
@@ -1805,11 +1803,15 @@ fun AudioStudioPane(
             onDismiss = { showModelPicker = false },
             onDeviceEntries = onDeviceEntries,
             health = viewModel.appSettings.modelHealth,
+            cloudGenerationEnabled = cloudModelsEnabled,
+            hasCredential = { candidate ->
+                !candidate.requiresApiKey || !viewModel.appSettings.apiKeyFor(candidate).isNullOrBlank()
+            },
         )
     }
 
     // ====================================================
-    // CREATE CUSTOM VOICE MODAL (SAMPLE ANALYSIS & CLONING)
+    // CREATE CUSTOM VOICE MODAL (SAMPLE ANALYSIS & EFFECT PROFILE)
     // ====================================================
     if (showCreateCustomVoiceDialog) {
         AlertDialog(

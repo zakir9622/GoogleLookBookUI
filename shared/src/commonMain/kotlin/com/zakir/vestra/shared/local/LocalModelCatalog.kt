@@ -232,14 +232,14 @@ object LocalModelCatalog {
         ),
         LocalModelEntry(
             id = "local-voice-changer",
-            displayName = "Local voice changer (DSP)",
-            description = "Offline pitch / speed / formant / warmth / clarity knobs — no neural pack required.",
+            displayName = "Voice effects (DSP)",
+            description = "Offline pitch, speed, formant, warmth, and clarity effects. Not neural voice conversion.",
             capability = AiCapability.AUDIO,
             packId = null,
             license = "App DSP",
             approxSizeLabel = "0 (built-in)",
             runnable = true,
-            testingNote = "Record with the mic or use device/cloud TTS, then apply knobs on-device.",
+            testingNote = "Record with the mic or use device/cloud TTS, then apply effects on-device. Neural voice conversion needs a separate consent-gated model pack.",
         ),
         LocalModelEntry(
             id = "local-quality-birefnet",

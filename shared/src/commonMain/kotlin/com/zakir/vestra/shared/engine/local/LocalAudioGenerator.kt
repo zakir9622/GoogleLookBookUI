@@ -36,8 +36,9 @@ object UnimplementedLocalAudioGenerator : LocalAudioGenerator {
 }
 
 /**
- * Offline voice changer — applies [VoiceKnobs] to an existing clip.
- * Basic DSP can run without a neural pack; neural VC flips [NEURAL_WIRED].
+ * Offline voice-effects processor — applies [VoiceKnobs] to an existing clip.
+ * This path changes pitch, speed, formant, warmth, and clarity. It is not identity-preserving
+ * neural voice conversion; that remains unavailable until a consent-gated neural pack is wired.
  */
 interface LocalVoiceChanger {
     fun isReady(): Boolean

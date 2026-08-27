@@ -13,8 +13,8 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 
 /**
- * Offline voice changer — true on-device DSP (pitch, speed, formant, warmth, clarity)
- * on mono/stereo 16-bit WAV, MP3, M4A, AAC, and OGG audio. No neural pack required.
+ * Offline voice effects — on-device DSP (pitch, speed, formant, warmth, clarity)
+ * on mono/stereo 16-bit WAV, MP3, M4A, AAC, and OGG audio. This is not neural voice conversion.
  */
 class AndroidLocalVoiceChanger(
     private val outputDir: File,
