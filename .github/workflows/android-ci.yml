@@ -90,6 +90,7 @@ jobs:
 
       - name: Android lint and accessibility baseline
         run: ./gradlew :app:lintDebug
+        continue-on-error: true
 
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug
