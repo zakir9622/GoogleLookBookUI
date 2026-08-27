@@ -231,54 +231,54 @@ fun HomeScreen(
         listOf(
             GeneratorPill(
                 id = "tryon",
-                title = "Virtual Fitting Studio",
-                subtitle = "Photorealistic try-on on customizable fashion models",
-                badge = "Core Atelier",
+                title = "Fit a look",
+                subtitle = "Place garments on a person with private, photoreal try-on",
+                badge = "VISION",
                 icon = Icons.Outlined.AutoAwesome,
                 accentColor = VestraColors.Accent,
                 onClick = onNewLook,
             ),
             GeneratorPill(
                 id = "image",
-                title = "Image Studio",
-                subtitle = "Text-to-image & couture prompt diffusion",
-                badge = "Tiny-SD / Cloud",
+                title = "Generate an image",
+                subtitle = "Turn a sentence into a cinematic visual direction",
+                badge = "IMAGE",
                 icon = Icons.Outlined.Image,
                 accentColor = VestraColors.ModalityImage,
                 onClick = onOpenImageStudio,
             ),
             GeneratorPill(
                 id = "video",
-                title = "Video Studio",
-                subtitle = "Motion camera sweeps & cinematic runway clips",
-                badge = "Motion Pipeline",
+                title = "Bring it to life",
+                subtitle = "Create movement, camera language, and atmosphere",
+                badge = "VIDEO",
                 icon = Icons.Outlined.Videocam,
                 accentColor = VestraColors.ModalityVideo,
                 onClick = onOpenVideoStudio,
             ),
             GeneratorPill(
                 id = "code",
-                title = "Code Studio",
-                subtitle = "LiteRT Gemma on-device architecture & UI generation",
-                badge = "100% On-Device",
+                title = "Build with AI",
+                subtitle = "Turn product ideas into focused code and UI concepts",
+                badge = "LOCAL",
                 icon = Icons.Outlined.Code,
                 accentColor = VestraColors.ModalityCode,
                 onClick = onOpenCodeStudio,
             ),
             GeneratorPill(
                 id = "audio",
-                title = "Audio Lab",
-                subtitle = "Native TTS & DSP voice pitch/formant shifting",
-                badge = "DSP Engine",
+                title = "Find the sound",
+                subtitle = "Shape voice, mood, and texture with on-device tools",
+                badge = "AUDIO",
                 icon = Icons.Outlined.GraphicEq,
                 accentColor = VestraColors.ModalityAudio,
                 onClick = onOpenAudioStudio,
             ),
             GeneratorPill(
                 id = "news",
-                title = "Fashion Intel & Chat",
-                subtitle = "Live trend curation & on-device AI reasoning",
-                badge = "Live Intel",
+                title = "Explore signals",
+                subtitle = "Read the moment with curated trends and AI reasoning",
+                badge = "SIGNALS",
                 icon = Icons.Outlined.Newspaper,
                 accentColor = VestraColors.AccentSoft,
                 onClick = onOpenNewsScreen,
@@ -379,7 +379,7 @@ private fun HomeDashboardContent(
             ) {
                 Column {
                     Text(
-                                                    "Your creative studio",
+                                                    "What will you create?",
                             style = MaterialTheme.typography.headlineSmall.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 letterSpacing = (-0.1).sp,
@@ -388,7 +388,7 @@ private fun HomeDashboardContent(
                         color = VestraColors.Ink,
                     )
                     Text(
-                        "Make, refine, and keep your best looks",
+                        "Describe an idea. Shape it. Keep the version that feels right.",
                         style = MaterialTheme.typography.bodySmall,
                         color = VestraColors.InkMuted,
                     )
@@ -470,7 +470,7 @@ private fun HomeDashboardContent(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = "ENGINE STATUS",
+                                text = "CREATIVE RUNTIME",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.1.sp,
@@ -514,13 +514,13 @@ private fun HomeDashboardContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                text = "Choose a starting point",
+                text = "Start with a direction",
                 style = MaterialTheme.typography.titleLarge,
                 color = VestraColors.Ink,
                 modifier = Modifier.padding(bottom = 6.dp),
             )
                 Text(
-                    text = "${generatorPills.size} Studios",
+                    text = "${generatorPills.size} AI MODES",
                     style = MaterialTheme.typography.labelSmall,
                     color = VestraColors.InkMuted,
                 )
@@ -547,9 +547,9 @@ private fun HomeDashboardContent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    GlassSectionLabel("RECENT CREATIONS")
+                    GlassSectionLabel("YOUR LATEST WORK")
                     Text(
-                        "View all",
+                        "Open library",
                         style = MaterialTheme.typography.labelMedium,
                         color = VestraColors.Accent,
                         modifier = Modifier

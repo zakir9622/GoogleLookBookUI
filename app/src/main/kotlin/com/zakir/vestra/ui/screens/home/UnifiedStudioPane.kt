@@ -27,7 +27,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
@@ -62,7 +61,6 @@ import com.zakir.vestra.shared.content.LookbookCopy
 import com.zakir.vestra.shared.local.LocalModelCatalog
 import com.zakir.vestra.shared.packs.ModelPackManager
 import com.zakir.vestra.ui.GenerativeViewModel
-import com.zakir.vestra.ui.components.ExamplePromptRow
 import com.zakir.vestra.ui.components.GlassCard
 import com.zakir.vestra.ui.components.GlassErrorBanner
 import com.zakir.vestra.ui.components.GlassOptionToggle
@@ -70,8 +68,8 @@ import com.zakir.vestra.ui.components.GlassPill
 import com.zakir.vestra.ui.components.GlassSectionLabel
 import com.zakir.vestra.ui.components.ModelPickerSheet
 import com.zakir.vestra.ui.components.OnDevicePickerEntry
-import com.zakir.vestra.ui.components.QuickPromptItem
 import com.zakir.vestra.ui.components.PromptComposer
+import com.zakir.vestra.ui.components.PromptCurator
 import com.zakir.vestra.ui.components.ResultPane
 import com.zakir.vestra.ui.theme.VestraColors
 import kotlinx.coroutines.Dispatchers
@@ -251,32 +249,13 @@ fun UnifiedStudioPane(
 
     val placeholder = when (capability) {
         AiCapability.IMAGE_GEN -> if (reference == null) {
-            "Describe the image… emerald abaya in a Lahore bazaar"
+            "Describe the visual… cinematic campaign, tactile fabric, late light"
         } else {
-            "Describe the edit… change to navy silk, soft studio light"
+            "Describe the change… reshape the light, color, or composition"
         }
-        AiCapability.VIDEO -> "Describe the clip… abaya walking through a Karachi night bazaar"
-        AiCapability.CODE -> "Ask for code… Kotlin Compose glass card with frosted border"
-        else -> "Enter a prompt…"
-    }
-
-    val examples = when (capability) {
-        AiCapability.IMAGE_GEN -> listOf(
-            "Emerald abaya in a Lahore bazaar, soft afternoon light",
-            "Navy silk hijab portrait, studio softbox, editorial",
-            "Cream linen shalwar kameez, courtyard architecture",
-        )
-        AiCapability.VIDEO -> listOf(
-            "Woman in black abaya walking through a Karachi night bazaar",
-            "Slow pan across embroidered green shalwar kameez in soft daylight",
-            "Hijabi model turning toward camera, linen texture detail",
-        )
-        AiCapability.CODE -> listOf(
-            "Write a Kotlin Compose frosted glass card with border highlight",
-            "Explain how to resume an Android OkHttp download with Range headers",
-            "Refactor this into a StateFlow ViewModel pattern (paste code)",
-        )
-        else -> emptyList()
+        AiCapability.VIDEO -> "Describe the motion… a six-second film with camera direction"
+        AiCapability.CODE -> "Ask for a build… a focused Compose screen, flow, or refactor"
+        else -> "Describe what you want to make…"
     }
 
     fun onGenerate() = when (capability) {
@@ -289,34 +268,14 @@ fun UnifiedStudioPane(
 
     val scrollState = rememberScrollState()
 
-    val quickPromptItems = remember(capability, reference) {
-        when (capability) {
-            AiCapability.IMAGE_GEN -> if (reference == null) {
-                listOf(
-                    QuickPromptItem("Emerald abaya in a Lahore bazaar, soft afternoon light", "Editorial"),
-                    QuickPromptItem("Navy silk hijab portrait, studio softbox", "Portrait"),
-                    QuickPromptItem("Cream linen shalwar kameez, courtyard architecture", "Couture"),
-                    QuickPromptItem("Textured raw silk kaftan with gold embroidery", "Detail"),
-                )
-            } else {
-                listOf(
-                    QuickPromptItem("Change fabric to navy raw silk with soft studio lighting", "Recolor"),
-                    QuickPromptItem("Add gold zardozi embroidery along the lapels", "Embroidery"),
-                    QuickPromptItem("Convert to cinematic outdoor golden hour backdrop", "Lighting"),
-                )
-            }
-            AiCapability.VIDEO -> listOf(
-                QuickPromptItem("Woman in black abaya walking through a Karachi night bazaar", "Cinematic"),
-                QuickPromptItem("Slow pan across embroidered green shalwar kameez in soft daylight", "Runway"),
-                QuickPromptItem("Hijabi model turning toward camera, linen texture detail", "Portrait"),
-            )
-            AiCapability.CODE -> listOf(
-                QuickPromptItem("Write a Kotlin Compose frosted glass card with border highlight", "UI Composable"),
-                QuickPromptItem("Explain how to resume an Android OkHttp download with Range headers", "Networking"),
-                QuickPromptItem("Refactor this into a StateFlow ViewModel pattern (paste code)", "Architecture"),
-            )
-            else -> emptyList()
-        }
+    val promptSessionSeed = remember { System.currentTimeMillis() }
+    val quickPromptItems = remember(capability, reference, promptSessionSeed, prompt) {
+        PromptCurator.curate(
+            capability = capability,
+            referenceAttached = reference != null,
+            sessionSeed = promptSessionSeed,
+            currentPrompt = prompt,
+        )
     }
 
     val feedItems by viewModel.feedItems.collectAsState()

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Report
 import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
@@ -76,6 +77,7 @@ fun FullScreenImageViewer(
     prompt: String? = null,
     onDismiss: () -> Unit,
     onRemix: (() -> Unit)? = null,
+    onReport: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -306,6 +308,16 @@ fun FullScreenImageViewer(
                                 },
                                 testTag = "viewer_share_button",
                             )
+
+                            // 4. REPORT Button
+                            if (onReport != null) {
+                                ViewerActionButton(
+                                    icon = Icons.Outlined.Report,
+                                    label = "Report",
+                                    onClick = onReport,
+                                    testTag = "viewer_report_button",
+                                )
+                            }
                         }
                     }
                 }

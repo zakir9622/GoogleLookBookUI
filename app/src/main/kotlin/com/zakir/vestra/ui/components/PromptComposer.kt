@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -131,7 +130,6 @@ fun PromptComposer(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .imePadding()
             .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
         // Compact Attached Media Strip (takes minimal space when active)
@@ -196,7 +194,17 @@ fun PromptComposer(
             }
         }
 
-        // Sleek Gemini Floating Capsule Bar
+        if (quickPrompts.isNotEmpty() && onSelectQuickPrompt != null && !busy) {
+            QuickPromptCarousel(
+                prompts = quickPrompts,
+                onSelectPrompt = onSelectQuickPrompt,
+                enabled = enabled,
+                title = "INSPIRE YOUR NEXT GENERATION",
+            )
+            Spacer(Modifier.height(4.dp))
+        }
+
+        // Sleek AI creation capsule
         val capsuleShape = RoundedCornerShape(30.dp)
         Surface(
             modifier = Modifier.fillMaxWidth(),

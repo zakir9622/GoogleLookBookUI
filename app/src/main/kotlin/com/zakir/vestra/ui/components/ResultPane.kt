@@ -77,7 +77,6 @@ fun ResultPane(
     val context = LocalContext.current
     val reportStore = remember { LocalReportStore(context) }
     var reportPath by remember { mutableStateOf<String?>(null) }
-    var showCompareMode by remember { mutableStateOf(false) }
     var showFullScreenImage by remember { mutableStateOf(false) }
 
     if (showFullScreenImage && state is GenerativeState.ImageReady) {
@@ -86,6 +85,10 @@ fun ResultPane(
             prompt = prompt,
             onDismiss = { showFullScreenImage = false },
             onRemix = onRemix,
+            onReport = {
+                showFullScreenImage = false
+                reportPath = state.path
+            },
         )
     }
 
@@ -135,159 +138,58 @@ fun ResultPane(
             )
             LiveGenConsole(liveLog, generationStartedAtMs)
         }
-        is GenerativeState.ImageReady -> GlassCard(modifier = Modifier.testTag(TestTags.RESULT_IMAGE_READY)) {
+        is GenerativeState.ImageReady -> Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(TestTags.RESULT_IMAGE_READY),
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                GlassSectionLabel("RESULT")
-                if (referenceUri != null) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(if (showCompareMode) VestraColors.Accent.copy(alpha = 0.25f) else VestraColors.GlassFill)
-                            .border(1.dp, if (showCompareMode) VestraColors.Accent else VestraColors.GlassBorder, RoundedCornerShape(50))
-                            .clickable { showCompareMode = !showCompareMode }
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                    ) {
-                        Text(
-                            text = if (showCompareMode) "Split View: ON" else "Compare Original",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (showCompareMode) VestraColors.Accent else VestraColors.Ink,
-                        )
-                    }
+                Column {
+                    GlassSectionLabel("YOUR GENERATION")
+                    Text(
+                        "Ready to review",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = VestraColors.InkMuted,
+                    )
                 }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GlassPill(text = "On-Device Generated", active = true)
-                GlassPill(text = "Saved in Gallery", active = true, accent = VestraColors.Accent)
+                Text(
+                    "Tap to open",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = VestraColors.Accent,
+                )
             }
             Spacer(Modifier.height(8.dp))
-
-            if (showCompareMode && referenceUri != null) {
-                BeforeAfterCompareSlider(
-                    beforeImage = referenceUri,
-                    afterImage = File(state.path),
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(320.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .clickable { showFullScreenImage = true }
-                        .testTag("expandable_result_image"),
-                ) {
-                    ShimmerAsyncImage(
-                        model = File(state.path),
-                        contentDescription = "Generated look. Tap to expand.",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit,
-                    )
-                    // Gemini-style Tap to expand pill hint
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = Color.Black.copy(alpha = 0.6f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
-                        modifier = Modifier
-                            .align(androidx.compose.ui.Alignment.BottomEnd)
-                            .padding(10.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.AutoAwesome,
-                                contentDescription = null,
-                                modifier = Modifier.size(12.dp),
-                                tint = VestraColors.Accent,
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = "Tap to expand",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                color = Color.White,
-                            )
-                        }
-                    }
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GlassPill(text = "Generated locally", active = true)
+                GlassPill(text = "Saved to gallery", active = true, accent = VestraColors.Accent)
             }
-
-            // Quick-Tap Prompt Tweaking Chips
-            if (onQuickTweak != null) {
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    "QUICK TWEAK & REMIX",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        color = VestraColors.Accent,
-                    ),
-                )
-                Spacer(Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    listOf(
-                        "+ Studio Lighting",
-                        "+ 8K Texture",
-                        "+ Soft Shadows",
-                        "+ Cyberpunk Tint",
-                        "+ Minimalist Clean",
-                        "- Remove Background",
-                    ).forEach { tweak ->
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(VestraColors.GlassFill)
-                                .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(50))
-                                .clickable { onQuickTweak(tweak) }
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                        ) {
-                            Text(
-                                tweak,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = VestraColors.Ink,
-                            )
-                        }
-                    }
-                }
-            }
-
             Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(320.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable { showFullScreenImage = true }
+                    .testTag("expandable_result_image"),
             ) {
-                GlassSecondaryButton(
-                    text = "Save",
-                    onClick = {
-                        MediaExport.saveImageToGallery(context, File(state.path))
-                        Toast.makeText(context, "Saved to Device Photos", Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-                if (onRemix != null) {
-                    GlassSecondaryButton(
-                        text = "Remix",
-                        onClick = onRemix,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                GlassSecondaryButton(
-                    text = LookbookCopy.ACTION_SHARE,
-                    onClick = { MediaExport.share(context, File(state.path), "Share image") },
-                    modifier = Modifier.weight(1f),
+                ShimmerAsyncImage(
+                    model = File(state.path),
+                    contentDescription = "Generated image. Double tap to open fullscreen viewer.",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
                 )
             }
-            Spacer(Modifier.height(10.dp))
-            GlassSecondaryButton(
-                text = LookbookCopy.ACTION_REPORT,
-                onClick = { reportPath = state.path },
+
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Open fullscreen to save, remix, share, or report this image.",
+                style = MaterialTheme.typography.labelSmall,
+                color = VestraColors.InkMuted,
             )
         }
         is GenerativeState.VideoReady -> GlassCard(modifier = Modifier.testTag(TestTags.RESULT_VIDEO_READY)) {
