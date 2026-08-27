@@ -9,6 +9,9 @@ import com.zakir.vestra.shared.cloud.AiCapability
 import com.zakir.vestra.shared.cloud.CloudModelContracts
 import com.zakir.vestra.shared.cloud.GenerationBatch
 import com.zakir.vestra.shared.cloud.GenerationCandidate
+import com.zakir.vestra.shared.cloud.PromptExpander
+import com.zakir.vestra.shared.cloud.PromptRecipe
+import com.zakir.vestra.shared.cloud.StyleModifierCatalog
 import com.zakir.vestra.shared.cloud.GenerativeAssists
 import com.zakir.vestra.shared.cloud.GenerativeCloudService
 import com.zakir.vestra.shared.cloud.GenerativeState
@@ -73,6 +76,9 @@ class GenerativeViewModel(
 
     private val _referenceUri = MutableStateFlow<String?>(null)
     val referenceUri: StateFlow<String?> = _referenceUri
+
+    private val _promptRecipe = MutableStateFlow(PromptRecipe())
+    val promptRecipe: StateFlow<PromptRecipe> = _promptRecipe
 
     private val _state = MutableStateFlow<GenerativeState?>(null)
     val state: StateFlow<GenerativeState?> = _state
@@ -229,9 +235,54 @@ class GenerativeViewModel(
         }
 
     fun setPrompt(value: String) {
-        _prompt.value = value.take(MAX_PROMPT)
+        val next = value.take(MAX_PROMPT)
+        _prompt.value = next
+        _promptRecipe.value = _promptRecipe.value.copy(basePrompt = next)
         _preflightMessage.value = null
     }
+
+    fun setPromptSubject(value: String) {
+        _promptRecipe.value = _promptRecipe.value.copy(subject = value.take(160))
+    }
+
+    fun setPromptSetting(value: String) {
+        _promptRecipe.value = _promptRecipe.value.copy(setting = value.take(160))
+    }
+
+    fun setPromptMood(value: String) {
+        _promptRecipe.value = _promptRecipe.value.copy(mood = value.take(120))
+    }
+
+    fun setPromptLighting(value: String) {
+        _promptRecipe.value = _promptRecipe.value.copy(lighting = value.take(120))
+    }
+
+    fun setPromptComposition(value: String) {
+        _promptRecipe.value = _promptRecipe.value.copy(composition = value.take(160))
+    }
+
+    fun setPromptFinish(value: String) {
+        _promptRecipe.value = _promptRecipe.value.copy(finish = value.take(160))
+    }
+
+    fun toggleStyleModifier(id: String) {
+        if (StyleModifierCatalog.find(id) == null) return
+        val current = _promptRecipe.value.styleModifierIds
+        _promptRecipe.value = _promptRecipe.value.copy(
+            styleModifierIds = if (id in current) current - id else (current + id).distinct(),
+        )
+    }
+
+    fun clearPromptDirector() {
+        _promptRecipe.value = PromptRecipe(basePrompt = _prompt.value)
+    }
+
+    fun expandedImagePrompt(): String =
+        PromptExpander.expand(_promptRecipe.value.copy(basePrompt = _prompt.value))
+
+    fun promptDirectorSummary(): String = PromptExpander.summary(
+        _promptRecipe.value.copy(basePrompt = _prompt.value),
+    )
 
     fun setReference(uri: String?) {
         _referenceUri.value = uri
@@ -297,6 +348,7 @@ class GenerativeViewModel(
         _liveLog.value = emptyList()
         _preflightMessage.value = null
         _prompt.value = ""
+        _promptRecipe.value = PromptRecipe()
         _referenceUri.value = null
         _resultCapability.value = null
         val cur = bag()
@@ -437,7 +489,7 @@ class GenerativeViewModel(
     fun generateImage() = generateImageCandidates()
 
     private fun generateImageCandidates(parentCandidateId: String? = null) {
-        val p = sanitizePrompt(_prompt.value)
+        val p = sanitizePrompt(expandedImagePrompt())
         if (p.isEmpty()) {
             _preflightMessage.value = "Enter a prompt describing the image."
             return

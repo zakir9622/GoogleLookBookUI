@@ -81,6 +81,7 @@ fun PromptComposer(
     onModelClick: (() -> Unit)? = null,
     assistCount: Int = 0,
     onAssistsClick: (() -> Unit)? = null,
+    onPromptDirectorClick: (() -> Unit)? = null,
     busy: Boolean,
     enabled: Boolean,
     onSend: () -> Unit,
@@ -113,6 +114,7 @@ fun PromptComposer(
             onModelClick = onModelClick,
             assistCount = assistCount,
             onAssistsClick = onAssistsClick,
+            onPromptDirectorClick = onPromptDirectorClick,
             modelLoading = modelLoading,
             assistToggles = assistToggles,
             onDismiss = { showOptionsSheet = false },
@@ -344,6 +346,7 @@ private fun ComposerPlusSheet(
     onModelClick: (() -> Unit)?,
     assistCount: Int,
     onAssistsClick: (() -> Unit)?,
+    onPromptDirectorClick: (() -> Unit)?,
     modelLoading: Boolean,
     assistToggles: (@Composable () -> Unit)?,
     onDismiss: () -> Unit,
@@ -451,6 +454,60 @@ private fun ComposerPlusSheet(
             }
 
             Spacer(Modifier.height(12.dp))
+
+            if (onPromptDirectorClick != null) {
+                Spacer(Modifier.height(12.dp))
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(16.dp))
+                        .clickable {
+                            onDismiss()
+                            onPromptDirectorClick()
+                        }
+                        .testTag("prompt_director_button"),
+                    color = VestraColors.GlassFill,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(VestraColors.Accent.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Tune,
+                                contentDescription = "Open Prompt Director",
+                                tint = VestraColors.Accent,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Prompt Director",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = VestraColors.Ink,
+                            )
+                            Text(
+                                text = "Shape the subject, mood, light, composition, and style",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = VestraColors.InkMuted,
+                            )
+                        }
+                        Text(
+                            text = "Tune",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = VestraColors.Accent,
+                        )
+                    }
+                }
+            }
 
             // Attachment Actions Tile
             Surface(
