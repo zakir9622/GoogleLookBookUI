@@ -3,6 +3,7 @@ package com.zakir.vestra.storage
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import java.io.File
@@ -12,9 +13,9 @@ import java.io.File
  *   Documents/TheLookbook/packs/     — model packs (+ .complete markers)
  *   Documents/TheLookbook/tokens.json — API token sidecar
  *
- * Requires all-files access on API 30+ so we can keep a real directory tree
- * for multi-GB packs. Until granted, falls back to app-private filesDir/packs
- * (wiped on uninstall).
+ * Android 11+ uses all-files access so we can keep a real directory tree for
+ * multi-GB packs. Older Android versions use app-private filesDir/packs to
+ * avoid requesting unsupported broad-storage access.
  */
 object DurableStorage {
 
@@ -31,13 +32,17 @@ object DurableStorage {
 
     fun privatePacksRoot(context: Context): File = File(context.filesDir, PACKS_FOLDER)
 
-    fun hasAllFilesAccess(): Boolean = Environment.isExternalStorageManager()
+    fun hasAllFilesAccess(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()
 
-    fun manageAllFilesIntent(context: Context): Intent =
-        Intent(
-            Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-            Uri.parse("package:${context.packageName}"),
-        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    fun manageAllFilesIntent(context: Context): Intent {
+        val appUri = Uri.parse("package:${context.packageName}")
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, appUri)
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, appUri)
+        }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
 
     /**
      * Prefer durable Documents tree when permitted; otherwise private storage.
