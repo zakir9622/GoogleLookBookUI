@@ -11,7 +11,9 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep every main push so each successful merge can publish its own APK;
+  # cancel superseded pull-request checks only.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -90,6 +92,7 @@ jobs:
         with:
           name: vestra-ci-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
           retention-days: 14
 
       - uses: actions/upload-artifact@v4
@@ -101,3 +104,43 @@ jobs:
             /tmp/lookbook-benchmark-cloud.json
           retention-days: 7
           if-no-files-found: ignore
+
+  publish-debug-release:
+    name: Publish debug APK release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: vestra-ci-debug-apk
+          path: dist
+
+      - name: Package APK and checksum
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find dist -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          TAG="debug-${GITHUB_RUN_NUMBER}-${GITHUB_SHA:0:7}"
+          APK_NAME="GoogleLookBookUI-${TAG}.apk"
+          cp "$APK" "dist/$APK_NAME"
+          sha256sum "dist/$APK_NAME" | tee "dist/$APK_NAME.sha256"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.package.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "GoogleLookBookUI Debug $TAG" \
+            --prerelease \
+            --notes "Debug APK built from successful main commit $GITHUB_SHA. This build uses the CI debug signing key; uninstall a previous build before installing it." \
+            dist/*.apk dist/*.sha256
