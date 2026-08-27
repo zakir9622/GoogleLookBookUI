@@ -57,7 +57,7 @@ fun AudioClipList(
     if (clips.isEmpty()) {
         GlassCard(modifier) {
             Text(
-                "No clips yet — record from the mic, apply a voice change, or generate speech.",
+                "No clips yet — record from the mic, apply voice effects, or generate speech.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = VestraColors.InkMuted,
             )
