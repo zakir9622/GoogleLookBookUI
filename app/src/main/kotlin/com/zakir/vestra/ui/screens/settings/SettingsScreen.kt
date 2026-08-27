@@ -350,10 +350,17 @@ fun SettingsScreen(
                     onOpenRouterInput = { openRouterInput = it },
                     keysSavedFlash = keysSavedFlash,
                     clipboardHint = clipboardHint,
+                    durableReady = durableReady,
                     onApplyClipboard = { applyClipboardToken() },
                     onOpenPortal = ::openPortal,
                     onSaveTokens = ::saveTokens,
                     importTokensLauncher = importTokensLauncher,
+                    onKeysLoadedFromDocuments = { count ->
+                        hfInput = appSettings.hfToken.value.orEmpty()
+                        groqInput = appSettings.groqApiKey.value.orEmpty()
+                        openRouterInput = appSettings.openRouterApiKey.value.orEmpty()
+                        keysSavedFlash = count > 0
+                    },
                     onOpenFreeModels = { showFreeModelsSheet = true },
                 )
             }

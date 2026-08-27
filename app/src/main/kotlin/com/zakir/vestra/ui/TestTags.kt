@@ -64,6 +64,7 @@ object TestTags {
     // Processing mode card (SettingsCloudSection.kt) — the on-device-only / cloud-allowed choice.
     const val PROCESSING_MODE_LOCAL = "processing_mode_local"
     const val PROCESSING_MODE_CLOUD = "processing_mode_cloud"
+    const val AUTO_LOAD_TOKENS = "settings_auto_load_tokens"
 
     // Interrupted-job banner (InterruptedJobsBanner.kt) — a local run still RUNNING/QUEUED from
     // a previous app process, surfaced on Home rather than silently lost.

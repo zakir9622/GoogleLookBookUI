@@ -57,7 +57,9 @@ import com.zakir.vestra.ui.TestTags
 import com.zakir.vestra.ui.components.GlassCard
 import com.zakir.vestra.ui.components.GlassSectionLabel
 import com.zakir.vestra.ui.theme.VestraColors
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Processing mode — simple switch between on-device and cloud allowed.
@@ -139,10 +141,12 @@ internal fun LazyListScope.settingsCloudKeysSection(
     onOpenRouterInput: (String) -> Unit,
     keysSavedFlash: Boolean,
     clipboardHint: String?,
+    durableReady: Boolean,
     onApplyClipboard: () -> Boolean,
     onOpenPortal: (String) -> Unit,
     onSaveTokens: () -> Unit,
     importTokensLauncher: ManagedActivityResultLauncher<Array<String>, android.net.Uri?>,
+    onKeysLoadedFromDocuments: (count: Int) -> Unit,
     onOpenFreeModels: () -> Unit,
 ) {
     item(key = "keys") {
@@ -223,6 +227,39 @@ internal fun LazyListScope.settingsCloudKeysSection(
             )
 
             Spacer(Modifier.height(16.dp))
+
+            if (durableReady) {
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            val count = withContext(Dispatchers.IO) {
+                                TokenSidecar.autoFetchFromDocuments(
+                                    appSettings,
+                                    overwriteExisting = true,
+                                )
+                            }
+                            onKeysLoadedFromDocuments(count)
+                            Toast.makeText(
+                                context,
+                                if (count > 0) {
+                                    "Loaded $count key(s) from Documents/TheLookbook"
+                                } else {
+                                    "No tokens.json / tokens.txt found in Documents/TheLookbook"
+                                },
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(TestTags.AUTO_LOAD_TOKENS),
+                ) {
+                    Icon(Icons.Outlined.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Auto-load tokens from Documents/TheLookbook")
+                }
+            }
 
             Button(
                 onClick = onSaveTokens,
