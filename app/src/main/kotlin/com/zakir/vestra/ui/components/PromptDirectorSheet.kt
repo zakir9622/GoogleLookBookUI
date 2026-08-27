@@ -34,6 +34,7 @@ fun PromptDirectorSheet(
     onRecipeChange: (PromptRecipe) -> Unit,
     onToggleModifier: (String) -> Unit,
     onReset: () -> Unit,
+    onApply: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(
@@ -48,13 +49,13 @@ fun PromptDirectorSheet(
                 .padding(bottom = 18.dp),
         ) {
             Text(
-                "Prompt Director",
+                "Recipe helper",
                 color = VestraColors.Ink,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                "Turn a loose idea into a clear creative brief. These controls expand locally before generation.",
+                "Use this only when you want help shaping a brief. Nothing changes until you apply it to the prompt.",
                 color = VestraColors.InkMuted,
             )
             Spacer(Modifier.height(14.dp))
@@ -99,7 +100,7 @@ fun PromptDirectorSheet(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = VestraColors.Accent, contentColor = VestraColors.Canvas),
-                ) { Text("Use direction") }
+                ) { Text("Apply to prompt") }
             }
         }
     }
