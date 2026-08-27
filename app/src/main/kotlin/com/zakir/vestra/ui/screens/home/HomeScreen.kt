@@ -67,6 +67,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -101,6 +102,8 @@ import com.zakir.vestra.ui.screens.settings.SettingsScreen
 import com.zakir.vestra.ui.screens.wardrobe.WardrobeScreen
 import com.zakir.vestra.ui.theme.RadiusTokens
 import com.zakir.vestra.ui.theme.VestraColors
+import com.zakir.vestra.ui.theme.VestraShapes
+import com.zakir.vestra.ui.theme.VestraSpacing
 import com.zakir.vestra.ui.util.rememberReduceMotion
 import java.io.File
 import kotlinx.coroutines.delay
@@ -349,7 +352,13 @@ private fun HomeDashboardContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 18.dp, top = 10.dp, end = 18.dp, bottom = 24.dp),
+                        contentPadding = PaddingValues(
+                    start = VestraSpacing.md,
+                    top = VestraSpacing.xs,
+                    end = VestraSpacing.md,
+                    bottom = VestraSpacing.dockClearance,
+                ),
+
     ) {
         // Interrupted jobs banner if any
         if (localJobStore != null) {
@@ -370,17 +379,18 @@ private fun HomeDashboardContent(
             ) {
                 Column {
                     Text(
-                        LookbookCopy.PRODUCT_NAME,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp,
-                        ),
+                                                    "Your creative studio",
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = (-0.1).sp,
+                            ),
+
                         color = VestraColors.Ink,
                     )
                     Text(
-                        LookbookCopy.STUDIO_HOME,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = VestraColors.Accent,
+                        "Make, refine, and keep your best looks",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = VestraColors.InkMuted,
                     )
                 }
 
@@ -388,18 +398,15 @@ private fun HomeDashboardContent(
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(VestraColors.SaffronDeep, VestraColors.Accent),
-                                ),
-                            )
+                                                                .background(VestraColors.Accent.copy(alpha = 0.14f))
+
                             .clickable(onClick = onOpenPacks)
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                     ) {
                         Text(
                             if (proReady) "Pro Engine" else "Fast Engine",
                             style = MaterialTheme.typography.labelMedium,
-                            color = Color.White,
+                            color = VestraColors.Accent,
                         )
                     }
 
@@ -419,14 +426,15 @@ private fun HomeDashboardContent(
                             Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(VestraColors.GlassFillStrong)
-                                .border(1.5.dp, VestraColors.Accent.copy(alpha = 0.7f), CircleShape),
+                                                                    .background(VestraColors.SurfaceRaised)
+                                    .border(1.dp, VestraColors.GlassBorder, CircleShape),
+
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
                                 Icons.Outlined.Settings,
                                 contentDescription = LookbookCopy.STUDIO_SETTINGS,
-                                tint = VestraColors.Accent,
+                                tint = VestraColors.Ink,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -442,17 +450,10 @@ private fun HomeDashboardContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(RadiusTokens.lg))
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                VestraColors.AtelierContainer.copy(alpha = 0.95f),
-                                VestraColors.AtelierCanvas.copy(alpha = 0.98f),
-                            ),
-                        ),
-                    )
-                    .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(RadiusTokens.lg))
-                    .padding(16.dp),
+                    .clip(RoundedCornerShape(VestraShapes.feature))
+                    .background(VestraColors.SurfaceRaised)
+                    .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(VestraShapes.feature))
+                    .padding(VestraSpacing.md),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -469,7 +470,7 @@ private fun HomeDashboardContent(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = "EXCLUSIVE ON-DEVICE ENGINE GATE",
+                                text = "ENGINE STATUS",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.1.sp,
@@ -512,7 +513,12 @@ private fun HomeDashboardContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                GlassSectionLabel("ISOLATED MODEL GENERATORS")
+                Text(
+                text = "Choose a starting point",
+                style = MaterialTheme.typography.titleLarge,
+                color = VestraColors.Ink,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
                 Text(
                     text = "${generatorPills.size} Studios",
                     style = MaterialTheme.typography.labelSmall,
@@ -618,24 +624,24 @@ private fun GeneratorPillCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1.0f,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "pill_scale",
+    val pressAlpha by animateFloatAsState(
+        targetValue = if (isPressed) 0.78f else 1f,
+        animationSpec = tween(120),
+        label = "pill_press_alpha",
     )
 
     Surface(
         modifier = modifier
             .testTag("generator_pill_${pill.id}")
-            .scale(scale)
-            .clip(RoundedCornerShape(RadiusTokens.lg))
+            .graphicsLayer { alpha = pressAlpha }
+            .clip(RoundedCornerShape(VestraShapes.card))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 role = Role.Button,
                 onClick = pill.onClick,
             ),
-        shape = RoundedCornerShape(RadiusTokens.lg),
+        shape = RoundedCornerShape(VestraShapes.card),
         color = VestraColors.SurfaceRaised,
         border = BorderStroke(
             width = 1.dp,
@@ -651,7 +657,7 @@ private fun GeneratorPillCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = VestraSpacing.md, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {

@@ -54,6 +54,7 @@ import com.zakir.vestra.storage.DurableStorage
 import com.zakir.vestra.storage.TokenSidecar
 import com.zakir.vestra.ui.components.GlassTopBar
 import com.zakir.vestra.ui.components.SpatialBackground
+import com.zakir.vestra.ui.theme.VestraSpacing
 import com.zakir.vestra.ui.util.rememberPackDownloadStarter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -308,8 +309,8 @@ fun SettingsScreen(
             Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .padding(horizontal = 20.dp),
-            contentPadding = PaddingValues(bottom = 40.dp),
+                .padding(horizontal = VestraSpacing.md),
+            contentPadding = PaddingValues(bottom = VestraSpacing.dockClearance),
         ) {
             item(key = "top") {
                 GlassTopBar(

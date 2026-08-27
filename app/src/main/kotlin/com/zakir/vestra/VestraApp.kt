@@ -152,10 +152,8 @@ class VestraApp : Application(), SingletonImageLoader.Factory {
         freeCloudDiscovery = FreeCloudDiscovery(http)
         // Restore tokens from Documents/TheLookbook/tokens.json after reinstall.
         TokenSidecar.restoreIntoPrefsIfEmpty(this, appSettings)
-        // Optional sideload seed from local.properties / LOOKBOOK_HF_TOKEN (gitignored).
-        TokenSidecar.applyDefaultHfIfBlank(appSettings, BuildConfig.DEFAULT_HF_TOKEN)
-        TokenSidecar.applyDefaultOpenRouterIfBlank(appSettings, BuildConfig.DEFAULT_OPENROUTER_TOKEN)
-        TokenSidecar.applyDefaultGroqIfBlank(appSettings, BuildConfig.DEFAULT_GROQ_TOKEN)
+        // Provider tokens are entered by the user or restored from their private sidecar.
+        // Never seed credentials from BuildConfig: release APKs are public artifacts.
         if (DurableStorage.hasAllFilesAccess()) {
             TokenSidecar.autoFetchFromDocuments(appSettings, overwriteExisting = false)
         }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -62,6 +63,9 @@ import com.zakir.vestra.ui.TestTags
 import com.zakir.vestra.ui.theme.RadiusTokens
 import com.zakir.vestra.ui.theme.SpatialElevation
 import com.zakir.vestra.ui.theme.VestraColors
+import com.zakir.vestra.ui.theme.VestraMotion
+import com.zakir.vestra.ui.theme.VestraShapes
+import com.zakir.vestra.ui.theme.VestraSpacing
 import com.zakir.vestra.ui.util.rememberReduceMotion
 
 /** Full-screen spatial canvas with breathing saffron orbs behind content. */
@@ -166,21 +170,19 @@ fun GlassCard(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(RadiusTokens.lg)
+    val shape = RoundedCornerShape(VestraShapes.card)
     val glassFill = VestraColors.GlassFill
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val reduceMotion = rememberReduceMotion()
-    val pressScale by animateFloatAsState(
-        targetValue = if (onClick != null && pressed && !reduceMotion) 0.97f else 1f,
-        label = "glassCardPressScale",
+    val pressAlpha by animateFloatAsState(
+        targetValue = if (onClick != null && pressed) 0.84f else 1f,
+        animationSpec = tween(if (reduceMotion) 0 else VestraMotion.pressMillis),
+        label = "glassCardPressAlpha",
     )
     val base = modifier
         .fillMaxWidth()
-        .graphicsLayer {
-            scaleX = pressScale
-            scaleY = pressScale
-        }
+        .graphicsLayer { alpha = pressAlpha }
         .then(
             if (elevation > 0.dp) {
                 Modifier.graphicsLayer {
@@ -353,7 +355,8 @@ fun GlassScreen(
             Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = VestraSpacing.md)
+                .imePadding()
                 .then(if (scrollable) Modifier.verticalScroll(scroll) else Modifier),
         ) {
             GlassTopBar(
@@ -410,37 +413,23 @@ fun GlassPrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val shape = RoundedCornerShape(50)
+    val shape = RoundedCornerShape(VestraShapes.control)
     Surface(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.fillMaxWidth(),
         shape = shape,
-        color = Color.Transparent,
-        contentColor = Color.White,
+        color = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        tonalElevation = if (enabled) 2.dp else 0.dp,
     ) {
         Box(
             Modifier
                 .fillMaxWidth()
-                .background(
-                    brush = if (enabled) {
-                        Brush.horizontalGradient(
-                            listOf(VestraColors.SaffronDeep, VestraColors.Accent, VestraColors.AccentSoft),
-                        )
-                    } else {
-                        Brush.horizontalGradient(
-                            listOf(
-                                VestraColors.Accent.copy(alpha = 0.35f),
-                                VestraColors.AccentSoft.copy(alpha = 0.35f),
-                            ),
-                        )
-                    },
-                    shape = shape,
-                )
-                .padding(vertical = 15.dp),
+                .padding(horizontal = VestraSpacing.md, vertical = 14.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(text, style = MaterialTheme.typography.titleMedium, color = Color.White)
+            Text(text, style = MaterialTheme.typography.titleMedium)
         }
     }
 }
@@ -525,7 +514,7 @@ fun GlassSecondaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(VestraShapes.control)
     Surface(
         onClick = onClick,
         enabled = enabled,

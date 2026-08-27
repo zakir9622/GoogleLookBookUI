@@ -2,9 +2,8 @@ package com.zakir.vestra.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -40,8 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -54,8 +52,10 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.zakir.vestra.ui.Routes
-import com.zakir.vestra.ui.theme.RadiusTokens
 import com.zakir.vestra.ui.theme.VestraColors
+import com.zakir.vestra.ui.theme.VestraMotion
+import com.zakir.vestra.ui.theme.VestraShapes
+import com.zakir.vestra.ui.theme.VestraSpacing
 
 /**
  * Top-level Bottom Navigation destinations
@@ -117,33 +117,21 @@ fun VestraBottomNavBar(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 10.dp),
+            .padding(horizontal = VestraSpacing.md, vertical = VestraSpacing.xs),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
-                .clip(RoundedCornerShape(RadiusTokens.xl))
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            VestraColors.AtelierContainer.copy(alpha = 0.94f),
-                            VestraColors.AtelierCanvas.copy(alpha = 0.98f),
-                        ),
-                    ),
-                )
+                .height(68.dp)
+                .clip(RoundedCornerShape(VestraShapes.sheet))
+                .background(VestraColors.Surface.copy(alpha = 0.98f))
                 .border(
                     width = 1.dp,
-                    brush = Brush.verticalGradient(
-                        listOf(
-                            VestraColors.AccentSoft.copy(alpha = 0.5f),
-                            VestraColors.GlassBorder.copy(alpha = 0.25f),
-                        ),
-                    ),
-                    shape = RoundedCornerShape(RadiusTokens.xl),
+                    color = VestraColors.GlassBorder,
+                    shape = RoundedCornerShape(VestraShapes.sheet),
                 )
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = VestraSpacing.xs),
             contentAlignment = Alignment.Center,
         ) {
             Row(
@@ -184,10 +172,10 @@ private fun BottomNavItem(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else if (isSelected) 1.06f else 1.0f,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "bottom_nav_scale",
+    val pressAlpha by animateFloatAsState(
+        targetValue = if (isPressed) 0.72f else 1f,
+        animationSpec = tween(VestraMotion.pressMillis),
+        label = "bottom_nav_press_alpha",
     )
 
     val contentColor by animateColorAsState(
@@ -198,15 +186,15 @@ private fun BottomNavItem(
     Column(
         modifier = modifier
             .testTag(destination.testTag)
-            .scale(scale)
-            .clip(RoundedCornerShape(14.dp))
+            .graphicsLayer { alpha = pressAlpha }
+            .clip(RoundedCornerShape(VestraShapes.control))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 role = Role.Tab,
                 onClick = onClick,
             )
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

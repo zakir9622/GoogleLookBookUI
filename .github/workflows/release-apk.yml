@@ -18,10 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -37,15 +37,60 @@ jobs:
           java -version
           ./gradlew --version
 
-      - name: Verify stable sideload keystore
+      - name: Prepare release signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD_SECRET: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS_SECRET: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD_SECRET: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          test -f signing/lookbook-sideload.keystore
-          keytool -list -keystore signing/lookbook-sideload.keystore \
-            -storepass lookbook-sideload -alias lookbook
+          KEYSTORE_PATH="$RUNNER_TEMP/lookbook-sideload.keystore"
+
+          if [[ "${GITHUB_REF_NAME}" == *-test.* || "${GITHUB_REF_NAME}" == *-test-* ]]; then
+            # Disposable prerelease key: test builds intentionally require uninstall/reinstall.
+            TEST_PASSWORD="$(openssl rand -hex 24)"
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE_PATH" \
+              -storepass "$TEST_PASSWORD" \
+              -keypass "$TEST_PASSWORD" \
+              -alias lookbook \
+              -keyalg RSA -keysize 2048 -validity 3650 \
+              -dname "CN=GoogleLookBookUI Test, OU=QA, O=GoogleLookBookUI, C=US" \
+              >/dev/null 2>&1
+            {
+              echo "KEYSTORE_PATH=$KEYSTORE_PATH"
+              echo "KEYSTORE_PASSWORD=$TEST_PASSWORD"
+              echo "KEY_ALIAS=lookbook"
+              echo "KEY_PASSWORD=$TEST_PASSWORD"
+            } >> "$GITHUB_ENV"
+          else
+            test -n "$KEYSTORE_BASE64" || { echo "Missing KEYSTORE_BASE64 repository secret for stable release" >&2; exit 1; }
+            test -n "$KEYSTORE_PASSWORD_SECRET" || { echo "Missing KEYSTORE_PASSWORD repository secret for stable release" >&2; exit 1; }
+            test -n "$KEY_ALIAS_SECRET" || { echo "Missing KEY_ALIAS repository secret for stable release" >&2; exit 1; }
+            test -n "$KEY_PASSWORD_SECRET" || { echo "Missing KEY_PASSWORD repository secret for stable release" >&2; exit 1; }
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+            chmod 600 "$KEYSTORE_PATH"
+            {
+              echo "KEYSTORE_PATH=$KEYSTORE_PATH"
+              echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD_SECRET"
+              echo "KEY_ALIAS=$KEY_ALIAS_SECRET"
+              echo "KEY_PASSWORD=$KEY_PASSWORD_SECRET"
+            } >> "$GITHUB_ENV"
+          fi
+
+          test -s "$KEYSTORE_PATH"
+
+      - name: Verify release signing key
+        run: |
+          set -euo pipefail
+          keytool -list -keystore "$KEYSTORE_PATH" \
+            -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
 
       - name: Assemble signed release APK
-        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+        run: |
+          set -euo pipefail
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace
 
       - name: Stage APK and checksum
         id: stage
@@ -95,6 +140,8 @@ jobs:
           Build from commit ${GITHUB_SHA}.
 
           Install the APK directly on a compatible Android device. Verify the downloaded APK with the accompanying SHA-256 checksum file.
+
+          Test prereleases use a disposable signing key and require uninstalling any previous build before installation. Stable releases use the preserved signing identity from GitHub Secrets and update in place.
           EOF
           )"
           ARGS=(

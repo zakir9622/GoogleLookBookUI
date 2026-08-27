@@ -14,9 +14,7 @@ local.properties
 # Signing
 *.keystore
 *.jks
-# Stable public sideload key — required for in-place APK updates from GitHub Releases.
-!signing/lookbook-sideload.keystore
-!signing/README.md
+# Release signing material must stay in GitHub Secrets or a local ignored file.
 
 # Claude worktrees
 .claude/
