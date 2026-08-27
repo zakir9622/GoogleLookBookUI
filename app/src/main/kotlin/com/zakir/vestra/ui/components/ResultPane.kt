@@ -54,6 +54,7 @@ import com.zakir.vestra.data.LocalReportStore
 import com.zakir.vestra.data.ReportReason
 import com.zakir.vestra.media.MediaExport
 import com.zakir.vestra.shared.cloud.GenerativeState
+import com.zakir.vestra.shared.cloud.ImageEditIntent
 import com.zakir.vestra.shared.content.LookbookCopy
 import com.zakir.vestra.ui.TestTags
 import com.zakir.vestra.ui.theme.VestraColors
@@ -73,6 +74,7 @@ fun ResultPane(
     onRemix: (() -> Unit)? = null,
     onSelectCandidate: ((candidateId: String) -> Unit)? = null,
     onCreateVariation: ((candidateId: String) -> Unit)? = null,
+    onEditIntent: ((ImageEditIntent) -> Unit)? = null,
     onQuickTweak: ((modifier: String) -> Unit)? = null,
     retryLabel: String = LookbookCopy.ACTION_RETRY,
 ) {
@@ -88,6 +90,7 @@ fun ResultPane(
             prompt = prompt,
             onDismiss = { showFullScreenImage = false },
             onRemix = onRemix,
+            onEditIntent = onEditIntent,
             onReport = {
                 showFullScreenImage = false
                 reportPath = state.path
@@ -109,6 +112,7 @@ fun ResultPane(
                         createVariation(candidate.id)
                     }
                 },
+                onEditIntent = onEditIntent,
                 onReport = {
                     showFullScreenImage = false
                     reportPath = candidate.path
