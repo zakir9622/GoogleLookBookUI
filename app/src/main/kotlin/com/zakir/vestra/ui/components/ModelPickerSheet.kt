@@ -57,6 +57,9 @@ data class OnDevicePickerEntry(
     val ready: Boolean,
     /** Short status when not ready — e.g. download vs coming soon. */
     val statusLabel: String = if (ready) "Ready offline" else "Download in Settings",
+    val sizeLabel: String? = null,
+    val license: String? = null,
+    val offlineAfterInstall: Boolean = true,
 )
 
 /**
@@ -289,7 +292,12 @@ private fun OnDevicePickerRow(
                 // packs…". Appending it to an already-ready row produced the contradictory
                 // "Ready offline · Download local-sdturbo-v1…", so it is only shown when the
                 // pack really is missing and that instruction is the useful next step.
-                if (entry.ready) entry.statusLabel else "${entry.statusLabel} · ${entry.detail}",
+                buildString {
+                    append(if (entry.ready) entry.statusLabel else "${entry.statusLabel} · ${entry.detail}")
+                    entry.sizeLabel?.let { append(" · $it") }
+                    entry.license?.let { append(" · $it") }
+                    if (entry.offlineAfterInstall && entry.ready) append(" · works offline")
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = VestraColors.InkMuted,
                 maxLines = 2,
