@@ -497,7 +497,7 @@ object CloudModelContracts {
                 msg.contains("safety", ignoreCase = true) ||
                 msg.contains("content policy", ignoreCase = true) ||
                 msg.contains("blocked", ignoreCase = true) ->
-                "$label was blocked by ${provider.displayName}. Enable Bypass filter assist or rephrase as fashion/editorial."
+                "$label was blocked by ${provider.displayName}. Try a clearly described creative brief or select a different compatible model."
             msg.contains("No internet", ignoreCase = true) ||
                 msg.contains("Unable to resolve host", ignoreCase = true) ||
                 msg.contains("UnknownHostException", ignoreCase = true) ||

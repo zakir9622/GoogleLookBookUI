@@ -12,6 +12,7 @@ import com.zakir.vestra.shared.cloud.GenerationCandidate
 import com.zakir.vestra.shared.cloud.PromptExpander
 import com.zakir.vestra.shared.cloud.PromptRecipe
 import com.zakir.vestra.shared.cloud.StyleModifierCatalog
+import com.zakir.vestra.shared.prompt.PromptParameterEngine
 import com.zakir.vestra.shared.cloud.GenerativeAssists
 import com.zakir.vestra.shared.cloud.GenerativeCloudService
 import com.zakir.vestra.shared.cloud.GenerativeState
@@ -109,8 +110,8 @@ class GenerativeViewModel(
     private val _fashionContext = MutableStateFlow(true)
     val fashionContext: StateFlow<Boolean> = _fashionContext
 
-    private val _bypassFilter = MutableStateFlow(true)
-    val bypassFilter: StateFlow<Boolean> = _bypassFilter
+    private val _briefClarity = MutableStateFlow(false)
+    val briefClarity: StateFlow<Boolean> = _briefClarity
 
     private val _qualityGuard = MutableStateFlow(true)
     val qualityGuard: StateFlow<Boolean> = _qualityGuard
@@ -305,8 +306,8 @@ class GenerativeViewModel(
         _fashionContext.value = enabled
     }
 
-    fun setBypassFilter(enabled: Boolean) {
-        _bypassFilter.value = enabled
+    fun setBriefClarity(enabled: Boolean) {
+        _briefClarity.value = enabled
     }
 
     fun setQualityGuard(enabled: Boolean) {
@@ -329,12 +330,21 @@ class GenerativeViewModel(
         _seed.value = value?.coerceAtLeast(0L)
     }
 
+    /** Applies a compact composer parameter while retaining the raw prompt as the source of truth. */
+    fun applyPromptParameter(parameter: String) {
+        val cleaned = _prompt.value.replace(
+            Regex("(?i)\\s*(?:1:1|4:5|3:4|16:9|9:16|3:2|2:3)\\s*"),
+            " ",
+        ).trim()
+        setPrompt("$cleaned $parameter".trim())
+    }
+
     fun currentAssists(): GenerativeAssists = GenerativeAssists(
         pragmatic = _pragmaticMode.value,
         creative = _creativeMode.value,
         fashionContext = _fashionContext.value,
         detailBoost = _detailBoost.value,
-        bypassFilter = _bypassFilter.value,
+        policyAwarePrompting = _briefClarity.value,
         qualityGuard = _qualityGuard.value,
         analyzeReference = _analyzeReference.value,
         inferenceSteps = _inferenceSteps.value.takeIf { it != 22 },
@@ -489,7 +499,9 @@ class GenerativeViewModel(
     fun generateImage() = generateImageCandidates()
 
     private fun generateImageCandidates(parentCandidateId: String? = null) {
-        val p = sanitizePrompt(expandedImagePrompt())
+        // The written prompt is primary. Recipe helper content is appended only when the user
+        // explicitly taps Apply to prompt in the optional sheet.
+        val p = sanitizePrompt(_prompt.value)
         if (p.isEmpty()) {
             _preflightMessage.value = "Enter a prompt describing the image."
             return

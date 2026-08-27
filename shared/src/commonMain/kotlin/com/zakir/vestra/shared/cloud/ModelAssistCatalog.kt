@@ -14,11 +14,8 @@ data class GenerativeAssists(
     val fashionContext: Boolean = true,
     /** Image/video: sharpness / lighting clauses. */
     val detailBoost: Boolean = true,
-    /**
-     * Image/video: soften safety false-positives on clothing prompts by
-     * reframing as fashion catalog / editorial photography (not NSFW).
-     */
-    val bypassFilter: Boolean = true,
+    /** Image/video: optionally add neutral professional-brief wording; never bypasses policy. */
+    val policyAwarePrompting: Boolean = false,
     /** Image/video: append common quality negatives (blur, artifacts). */
     val qualityGuard: Boolean = true,
     /** Image/edit: offline vision assist on reference photo before generation (L2). */
@@ -36,7 +33,7 @@ object ModelAssistCatalog {
             AssistToggle("creative", "Creative", "Higher temperature for more exploratory code answers."),
         )
         AiCapability.IMAGE_GEN, AiCapability.IMAGE_EDIT, AiCapability.VIDEO -> listOf(
-            AssistToggle("bypass", "Bypass filter assist", "Reframe as fashion/editorial so clothing prompts trip fewer false blocks."),
+            AssistToggle("brief_clarity", "Brief clarity", "Adds neutral professional context without changing provider safety rules."),
             AssistToggle("fashion", "Fashion context", "Modest wear lookbook framing."),
             AssistToggle("detail", "Detail boost", "Sharpness and lighting clauses."),
             AssistToggle("quality", "Quality guard", "Avoid blur / artifacts language."),

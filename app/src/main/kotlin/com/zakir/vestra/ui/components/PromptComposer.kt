@@ -69,6 +69,12 @@ import com.zakir.vestra.ui.TestTags
 import com.zakir.vestra.ui.theme.RadiusTokens
 import com.zakir.vestra.ui.theme.VestraColors
 
+/** A compact, prompt-visible parameter shortcut; the raw prompt remains canonical. */
+data class ComposerParameterChip(
+    val label: String,
+    val promptToken: String,
+)
+
 /**
  * Clean, modern, clutter-free Gemini-style input capsule.
  * Keeps the screen spacious and unobstructed, cleanly docking right above the keyboard.
@@ -98,6 +104,8 @@ fun PromptComposer(
     showLiveDock: Boolean = true,
     quickPrompts: List<QuickPromptItem> = emptyList(),
     onSelectQuickPrompt: ((String) -> Unit)? = null,
+    parameterChips: List<ComposerParameterChip> = emptyList(),
+    onParameterClick: ((String) -> Unit)? = null,
     modelLoading: Boolean = false,
     attachments: List<AttachmentItem> = emptyList(),
     onAddAttachment: ((AttachmentItem) -> Unit)? = null,
@@ -204,6 +212,34 @@ fun PromptComposer(
                 title = "INSPIRE YOUR NEXT GENERATION",
             )
             Spacer(Modifier.height(4.dp))
+        }
+
+        if (parameterChips.isNotEmpty() && onParameterClick != null && !busy) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                parameterChips.forEach { chip ->
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = VestraColors.GlassFill,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .border(1.dp, VestraColors.GlassBorder, RoundedCornerShape(50))
+                            .clickable(enabled = enabled) { onParameterClick(chip.promptToken) },
+                    ) {
+                        Text(
+                            text = chip.label,
+                            color = VestraColors.InkMuted,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        )
+                    }
+                }
+            }
         }
 
         // Sleek AI creation capsule
@@ -383,7 +419,7 @@ private fun ComposerPlusSheet(
                 .padding(bottom = 24.dp),
         ) {
             Text(
-                text = "OPTIONS & ATTACHMENTS",
+                text = "MODEL, CONTROLS & ATTACHMENTS",
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.2.sp,
@@ -490,18 +526,18 @@ private fun ComposerPlusSheet(
                         Spacer(Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Prompt Director",
+                                text = "Recipe helper",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = VestraColors.Ink,
                             )
                             Text(
-                                text = "Shape the subject, mood, light, composition, and style",
+                                text = "Optional: compose a direction, then apply it to your prompt",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = VestraColors.InkMuted,
                             )
                         }
                         Text(
-                            text = "Tune",
+                            text = "Open",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                             color = VestraColors.Accent,
                         )

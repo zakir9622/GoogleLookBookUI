@@ -68,6 +68,7 @@ import com.zakir.vestra.ui.components.GlassErrorBanner
 import com.zakir.vestra.ui.components.GlassOptionToggle
 import com.zakir.vestra.ui.components.GlassPill
 import com.zakir.vestra.ui.components.GlassSectionLabel
+import com.zakir.vestra.ui.components.ComposerParameterChip
 import com.zakir.vestra.ui.components.ModelPickerSheet
 import com.zakir.vestra.ui.components.OnDevicePickerEntry
 import com.zakir.vestra.ui.components.PromptComposer
@@ -113,7 +114,7 @@ fun UnifiedStudioPane(
     val pragmatic by viewModel.pragmaticMode.collectAsState()
     val detailBoost by viewModel.detailBoost.collectAsState()
     val fashionContext by viewModel.fashionContext.collectAsState()
-    val bypassFilter by viewModel.bypassFilter.collectAsState()
+    val briefClarity by viewModel.briefClarity.collectAsState()
     val qualityGuard by viewModel.qualityGuard.collectAsState()
     val analyzeReference by viewModel.analyzeReference.collectAsState()
     val lastUsedId by viewModel.lastUsedProviderId.collectAsState()
@@ -155,7 +156,7 @@ fun UnifiedStudioPane(
         AiCapability.CODE -> listOf(pragmatic, creative).count { it }
         AiCapability.AUDIO -> listOf(fashionContext).count { it }
         AiCapability.IMAGE_GEN, AiCapability.IMAGE_EDIT, AiCapability.VIDEO ->
-            listOf(bypassFilter, fashionContext, detailBoost, qualityGuard, analyzeReference).count { it }
+            listOf(briefClarity, fashionContext, detailBoost, qualityGuard, analyzeReference).count { it }
         else -> 0
     }
 
@@ -220,7 +221,7 @@ fun UnifiedStudioPane(
 
     val moduleDescription = when (capability) {
         AiCapability.IMAGE_GEN ->
-            if (reference == null) "Create, compare, and refine images with Prompt Director and dynamic style controls."
+            if (reference == null) "Create, compare, and refine images with a raw prompt and optional controls."
             else "Edit a reference with guided intents while preserving the subject and visual direction."
         AiCapability.VIDEO ->
             if (cloudModelsEnabled) "Shape short motion studies with camera language, rhythm, and atmosphere."
@@ -284,6 +285,14 @@ fun UnifiedStudioPane(
             sessionSeed = promptSessionSeed,
             currentPrompt = prompt,
         )
+    }
+    val parameterChips = when (capability) {
+        AiCapability.IMAGE_GEN, AiCapability.VIDEO -> listOf(
+            ComposerParameterChip("Square", "1:1"),
+            ComposerParameterChip("Portrait", "9:16"),
+            ComposerParameterChip("Landscape", "16:9"),
+        )
+        else -> emptyList()
     }
 
     val feedItems by viewModel.feedItems.collectAsState()
@@ -528,11 +537,13 @@ fun UnifiedStudioPane(
             showLiveDock = true,
             quickPrompts = quickPromptItems,
             onSelectQuickPrompt = viewModel::setPrompt,
+            parameterChips = parameterChips,
+            onParameterClick = viewModel::applyPromptParameter,
             modelLoading = warmup is GenerativeViewModel.Warmup.Loading,
             assistToggles = {
                 AdvancedAssistRow(
                     capability = capability,
-                    bypassFilter = bypassFilter,
+                    briefClarity = briefClarity,
                     fashionContext = fashionContext,
                     detailBoost = detailBoost,
                     qualityGuard = qualityGuard,
@@ -540,7 +551,7 @@ fun UnifiedStudioPane(
                     localVisionReady = localVisionReady,
                     pragmatic = pragmatic,
                     creative = creative,
-                    onBypassFilter = { viewModel.setBypassFilter(!bypassFilter) },
+                    onBriefClarity = { viewModel.setBriefClarity(!briefClarity) },
                     onFashionContext = { viewModel.setFashionContext(!fashionContext) },
                     onDetailBoost = { viewModel.setDetailBoost(!detailBoost) },
                     onQualityGuard = { viewModel.setQualityGuard(!qualityGuard) },
@@ -566,6 +577,10 @@ fun UnifiedStudioPane(
             },
             onToggleModifier = viewModel::toggleStyleModifier,
             onReset = viewModel::clearPromptDirector,
+            onApply = {
+                viewModel.setPrompt(viewModel.expandedImagePrompt())
+                showPromptDirector = false
+            },
             onDismiss = { showPromptDirector = false },
         )
     }
@@ -607,7 +622,7 @@ private fun subtitle(capability: AiCapability): String = when (capability) {
 @Composable
 private fun AdvancedAssistRow(
     capability: AiCapability,
-    bypassFilter: Boolean,
+    briefClarity: Boolean,
     fashionContext: Boolean,
     detailBoost: Boolean,
     qualityGuard: Boolean,
@@ -615,7 +630,7 @@ private fun AdvancedAssistRow(
     localVisionReady: Boolean,
     pragmatic: Boolean,
     creative: Boolean,
-    onBypassFilter: () -> Unit,
+    onBriefClarity: () -> Unit,
     onFashionContext: () -> Unit,
     onDetailBoost: () -> Unit,
     onQualityGuard: () -> Unit,
@@ -635,6 +650,7 @@ private fun AdvancedAssistRow(
             GlassOptionToggle(text = "Detail boost", active = detailBoost, onToggle = onDetailBoost)
             GlassOptionToggle(text = "Quality guard", active = qualityGuard, onToggle = onQualityGuard)
             GlassOptionToggle(text = "Editorial style", active = fashionContext, onToggle = onFashionContext)
+            GlassOptionToggle(text = "Brief clarity", active = briefClarity, onToggle = onBriefClarity)
             if (localVisionReady) {
                 GlassOptionToggle(text = "Vision tag", active = analyzeReference, onToggle = onAnalyzeReference)
             }
