@@ -24,6 +24,10 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Ensure debug keystore
@@ -44,12 +48,13 @@ jobs:
       - name: Validate toolchain and Gradle wrapper
         run: |
           set -euo pipefail
+          chmod +x ./gradlew scripts/*.sh ml/*.py 2>/dev/null || true
           test -x ./gradlew
           java -version
           ./gradlew --version
 
       - name: Bootstrap Python ML deps
-        run: pip install onnxruntime numpy huggingface_hub onnx
+        run: pip install --upgrade pip && pip install onnxruntime numpy huggingface_hub onnx pillow
 
       - name: Bootstrap debug lite pack if missing
         run: |

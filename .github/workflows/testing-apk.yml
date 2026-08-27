@@ -38,7 +38,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Assemble debug APK
-        run: ./gradlew :app:assembleDebug
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleDebug
 
       - uses: actions/upload-artifact@v4
         with:

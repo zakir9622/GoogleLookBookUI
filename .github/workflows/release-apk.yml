@@ -33,6 +33,7 @@ jobs:
       - name: Validate toolchain and Gradle wrapper
         run: |
           set -euo pipefail
+          chmod +x ./gradlew scripts/*.sh ml/*.py 2>/dev/null || true
           test -x ./gradlew
           java -version
           ./gradlew --version
