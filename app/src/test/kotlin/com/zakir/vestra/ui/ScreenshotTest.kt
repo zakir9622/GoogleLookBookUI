@@ -374,4 +374,42 @@ class ScreenshotTest {
             )
         }
     }
+
+    /** Voice Changer grid with human presets & sample clone button */
+    @Test
+    fun voiceChangerGrid() {
+        shoot("11-voice-changer-human-presets") {
+            androidx.compose.foundation.layout.Column(
+                androidx.compose.ui.Modifier.padding(18.dp),
+            ) {
+                com.zakir.vestra.ui.components.GlassSectionLabel("AUDIO STUDIO · VOICE CHANGER")
+                androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.height(8.dp))
+                com.zakir.vestra.ui.components.GlassCard {
+                    androidx.compose.material3.Text(
+                        "REAL HUMAN VOICES (GRANDPA, GIRLS, DEEP MALE)",
+                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                        color = com.zakir.vestra.ui.theme.VestraColors.Accent,
+                    )
+                    androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.height(8.dp))
+                    androidx.compose.foundation.layout.FlowRow(
+                        modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                        maxItemsInEachRow = 2,
+                    ) {
+                        com.zakir.vestra.shared.audio.VoicePresets.presets.take(4).forEach { preset ->
+                            com.zakir.vestra.ui.components.GlassCard {
+                                androidx.compose.material3.Text("${preset.iconEmoji} ${preset.displayName}")
+                                androidx.compose.material3.Text(
+                                    preset.description,
+                                    style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                                    color = com.zakir.vestra.ui.theme.VestraColors.InkMuted,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

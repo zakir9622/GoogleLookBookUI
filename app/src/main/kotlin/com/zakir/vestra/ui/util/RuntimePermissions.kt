@@ -36,12 +36,24 @@ fun Context.hasCameraPermission(): Boolean =
     ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
         PackageManager.PERMISSION_GRANTED
 
+fun Context.hasAudioPermission(): Boolean =
+    ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+        PackageManager.PERMISSION_GRANTED
+
+fun Context.hasDurableStoragePermission(): Boolean =
+    DurableStorage.hasAllFilesAccess()
+
 fun Context.openAppSystemSettings() {
     val intent = Intent(
         Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
         Uri.fromParts("package", packageName, null),
     ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     runCatching { startActivity(intent) }
+}
+
+fun Context.openManageStorageSettings() {
+    runCatching { startActivity(DurableStorage.manageAllFilesIntent(this)) }
+        .onFailure { openAppSystemSettings() }
 }
 
 fun Context.openNotificationSettings() {

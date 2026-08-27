@@ -69,16 +69,16 @@ internal fun LazyListScope.settingsCloudMasterToggleSection(appSettings: AppSett
             GlassSectionLabel("PROCESSING MODE")
             Spacer(Modifier.height(10.dp))
             ProcessingModeCard(
-                title = "On-device only (100% Private Offline)",
-                description = "All AI models run locally on your device hardware with zero network calls.",
+                title = "On-device only",
+                description = "100% Private & Offline — All AI models run locally on device with zero network calls.",
                 selected = !cloudEnabled,
                 onSelect = { appSettings.setCloudModelsEnabled(false) },
                 testTag = TestTags.PROCESSING_MODE_LOCAL,
             )
             Spacer(Modifier.height(8.dp))
             ProcessingModeCard(
-                title = "Cloud allowed (Free community hosts)",
-                description = "Enable fast access to free cloud inference (Groq, Hugging Face ZeroGPU, OpenRouter).",
+                title = "Cloud allowed",
+                description = "Free community hosts — fast access to Groq, Hugging Face, and OpenRouter.",
                 selected = cloudEnabled,
                 onSelect = { appSettings.setCloudModelsEnabled(true) },
                 testTag = TestTags.PROCESSING_MODE_CLOUD,

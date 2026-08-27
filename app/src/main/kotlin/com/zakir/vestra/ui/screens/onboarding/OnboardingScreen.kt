@@ -1,5 +1,9 @@
 package com.zakir.vestra.ui.screens.onboarding
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -34,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.zakir.vestra.shared.settings.AppSettings
 import com.zakir.vestra.shared.content.LookbookCopy
 import com.zakir.vestra.ui.components.GlassPrimaryButton
+import com.zakir.vestra.ui.components.PermissionChecklist
 import com.zakir.vestra.ui.components.SpatialBackground
 import com.zakir.vestra.ui.theme.VestraColors
 import androidx.compose.foundation.layout.Arrangement
@@ -44,7 +50,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 
-private data class OnboardingPage(val title: String, val body: String)
+private data class OnboardingPage(val title: String, val body: String, val isPermissionPage: Boolean = false)
 
 private val pages = listOf(
     OnboardingPage(
@@ -63,12 +69,33 @@ private val pages = listOf(
         "Keys unlock free cloud",
         "Paste free Hugging Face, Groq, or OpenRouter tokens in Settings. Local Lite/Pro never need a key.",
     ),
+    OnboardingPage(
+        "Mandatory Permissions Check",
+        "The Lookbook requires on-device permissions for camera try-on, background pack downloads, and voice prompts. Tap any missing item below to allow.",
+        isPermissionPage = true,
+    ),
 )
 
 @Composable
 fun OnboardingScreen(appSettings: AppSettings, onDone: () -> Unit) {
     var page by remember { mutableIntStateOf(0) }
     val slide = pages[page]
+
+    // Default startup permission prompt when first-time initialization screen is shown
+    val startupPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { _ -> }
+
+    LaunchedEffect(Unit) {
+        val perms = buildList {
+            if (Build.VERSION.SDK_INT >= 33) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            add(Manifest.permission.CAMERA)
+            add(Manifest.permission.RECORD_AUDIO)
+        }.toTypedArray()
+        startupPermissionLauncher.launch(perms)
+    }
 
     SpatialBackground {
         Column(
@@ -99,7 +126,7 @@ fun OnboardingScreen(appSettings: AppSettings, onDone: () -> Unit) {
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(210.dp)
+                    .height(if (slide.isPermissionPage) 130.dp else 210.dp)
                     .clip(RoundedCornerShape(28.dp))
                     .background(
                         Brush.verticalGradient(
@@ -147,7 +174,7 @@ fun OnboardingScreen(appSettings: AppSettings, onDone: () -> Unit) {
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
 
             AnimatedContent(
                 targetState = slide,
@@ -164,13 +191,20 @@ fun OnboardingScreen(appSettings: AppSettings, onDone: () -> Unit) {
                         style = MaterialTheme.typography.headlineMedium,
                         color = VestraColors.Ink,
                     )
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(8.dp))
                     Text(
                         text = current.body,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = VestraColors.InkMuted,
                         textAlign = TextAlign.Start,
                     )
+
+                    if (current.isPermissionPage) {
+                        Spacer(Modifier.height(14.dp))
+                        PermissionChecklist(
+                            showHeader = false,
+                        )
+                    }
                 }
             }
 

@@ -23,6 +23,7 @@ import com.zakir.vestra.storage.DurableStorage
 import com.zakir.vestra.storage.TokenSidecar
 import com.zakir.vestra.ui.components.GlassCard
 import com.zakir.vestra.ui.components.GlassSectionLabel
+import com.zakir.vestra.ui.components.PermissionChecklist
 import com.zakir.vestra.ui.theme.VestraColors
 import com.zakir.vestra.ui.util.hasCameraPermission
 import com.zakir.vestra.ui.util.hasPostNotificationsPermission
@@ -198,29 +199,16 @@ internal fun LazyListScope.settingsStoragePermissionsSection(
     }
 
     item(key = "permissions-$permissionEpoch") {
-        val context = LocalContext.current
         GlassCard {
-            GlassSectionLabel("PERMISSIONS")
+            GlassSectionLabel("PERMISSIONS & ACCESS")
             Text(
-                LookbookCopy.PERM_NOTIFICATIONS_TITLE + ": " +
-                    if (context.hasPostNotificationsPermission()) "Allowed" else "Not allowed",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                LookbookCopy.PERM_CAMERA_TITLE + ": " +
-                    if (context.hasCameraPermission()) "Allowed" else "Not allowed",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                LookbookCopy.PERM_STORAGE_TITLE + ": " +
-                    if (DurableStorage.hasAllFilesAccess()) "Allowed" else "Not allowed",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Permissions are requested in context — when you use the camera, download packs, or enable durable storage.",
+                "Tap any permission below to grant access or configure settings. The Lookbook works fully offline once necessary permissions and packs are set.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(12.dp))
+            PermissionChecklist(
+                showHeader = false,
             )
         }
         Spacer(Modifier.height(14.dp))
