@@ -1171,6 +1171,7 @@ class GenerativeViewModel(
                         prompt = candidate.prompt,
                         providerId = candidate.providerId,
                         seed = candidate.seed,
+                        referenceReceipt = candidate.referenceReceipt,
                     ),
                 )
             }

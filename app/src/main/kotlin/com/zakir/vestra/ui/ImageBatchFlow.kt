@@ -5,6 +5,7 @@ import com.zakir.vestra.shared.cloud.GenerationCandidate
 import com.zakir.vestra.shared.cloud.GenerativeAssists
 import com.zakir.vestra.shared.cloud.GenerativeCloudService
 import com.zakir.vestra.shared.cloud.GenerativeState
+import com.zakir.vestra.shared.cloud.ReferenceReceipt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
@@ -31,6 +32,13 @@ internal fun generateImageBatch(
     val batchId = newId()
     val batchStartedAt = nowMillis()
     val baseSeed = assists.seed ?: batchStartedAt
+    val referenceReceipt = referenceUri?.takeIf { it.isNotBlank() }?.let { sourceUri ->
+        ReferenceReceipt(
+            sourceUri = sourceUri,
+            requestMode = "image-to-image",
+            attachedAtEpochMillis = batchStartedAt,
+        )
+    }
     val completed = mutableListOf<GenerationCandidate>()
     var lastFailure: GenerativeState.Failed? = null
 
@@ -81,6 +89,7 @@ internal fun generateImageBatch(
                 candidateCount = requestedCount,
                 parentCandidateId = parentCandidateId,
                 seed = candidateSeed,
+                referenceReceipt = referenceReceipt,
             )
         } else {
             lastFailure = failed ?: GenerativeState.Failed("Candidate ${index + 1} did not return an image.")

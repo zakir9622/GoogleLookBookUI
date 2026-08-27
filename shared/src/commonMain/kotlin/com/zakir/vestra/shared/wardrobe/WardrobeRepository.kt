@@ -1,6 +1,7 @@
 package com.zakir.vestra.shared.wardrobe
 
 import com.zakir.vestra.shared.domain.EngineTier
+import com.zakir.vestra.shared.cloud.ReferenceReceipt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.Serializable
@@ -43,6 +44,8 @@ data class WardrobeEntry(
     val prompt: String? = null,
     val providerId: String? = null,
     val seed: Long? = null,
+    /** Evidence that a source image was attached to this image-to-image request. */
+    val referenceReceipt: ReferenceReceipt? = null,
 )
 
 /** Minimal platform file seam; androidMain/iosMain provide actuals. */

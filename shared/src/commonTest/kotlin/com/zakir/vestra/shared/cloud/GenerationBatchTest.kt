@@ -2,6 +2,7 @@ package com.zakir.vestra.shared.cloud
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 class GenerationBatchTest {
     @Test
@@ -24,6 +25,19 @@ class GenerationBatchTest {
     fun variationRetainsExactParentCandidate() {
         val variation = candidate(id = "variation", index = 0, parentId = "source")
         assertEquals("source", variation.parentCandidateId)
+    }
+
+    @Test
+    fun referenceReceiptRemainsAttachedToCandidate() {
+        val receipt = ReferenceReceipt(
+            sourceUri = "content://media/reference.jpg",
+            requestMode = "image-to-image",
+            attachedAtEpochMillis = 100L,
+        )
+        val result = candidate(id = "edited", index = 0).copy(referenceReceipt = receipt)
+
+        assertNotNull(result.referenceReceipt)
+        assertEquals("image-to-image", result.referenceReceipt?.requestMode)
     }
 
     private fun candidate(
