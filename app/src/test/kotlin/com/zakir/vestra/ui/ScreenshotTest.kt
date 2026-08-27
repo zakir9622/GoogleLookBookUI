@@ -342,6 +342,38 @@ class ScreenshotTest {
         }
     }
 
+    /** Dark runtime-state fixture verifies semantic glass and progress surfaces. */
+    @Test
+    fun generationOverlayDark() {
+        shoot("12-generation-overlay-dark") {
+            com.zakir.vestra.ui.components.GenerationStateOverlay(
+                isGenerating = true,
+                progress = 0.52f,
+                currentStep = 4,
+                totalSteps = 8,
+                stageDescription = "Refining selected direction",
+                hardwareTag = "LOCAL IMAGE ENGINE",
+                onCancel = {},
+            )
+        }
+    }
+
+    /** Light runtime-state fixture verifies the paired theme retains readable generation feedback. */
+    @Test
+    fun generationOverlayLight() {
+        shoot("13-generation-overlay-light", darkTheme = false) {
+            com.zakir.vestra.ui.components.GenerationStateOverlay(
+                isGenerating = true,
+                progress = 0.52f,
+                currentStep = 4,
+                totalSteps = 8,
+                stageDescription = "Refining selected direction",
+                hardwareTag = "LOCAL IMAGE ENGINE",
+                onCancel = {},
+            )
+        }
+    }
+
     /** The composer as it renders docked at the bottom of the studio. */
     @Test
     fun composerDock() {
