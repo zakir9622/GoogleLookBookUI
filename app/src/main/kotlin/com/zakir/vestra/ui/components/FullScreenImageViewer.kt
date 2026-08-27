@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -44,6 +45,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,6 +65,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import com.zakir.vestra.media.MediaExport
+import com.zakir.vestra.shared.cloud.ImageEditIntent
+import com.zakir.vestra.shared.cloud.ImageEditIntentCatalog
 import com.zakir.vestra.ui.theme.VestraColors
 import java.io.File
 
@@ -78,6 +82,7 @@ fun FullScreenImageViewer(
     onDismiss: () -> Unit,
     onRemix: (() -> Unit)? = null,
     onReport: (() -> Unit)? = null,
+    onEditIntent: ((ImageEditIntent) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -252,9 +257,35 @@ fun FullScreenImageViewer(
                         )
                         .navigationBarsPadding()
                         .padding(horizontal = 20.dp, vertical = 20.dp),
-                    contentAlignment = Alignment.Center,
+                    contentAlignment = Alignment.BottomCenter,
                 ) {
-                    Surface(
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        if (onEditIntent != null) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 10.dp)
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                ImageEditIntentCatalog.all.forEach { intent ->
+                                    ViewerActionButton(
+                                        icon = Icons.Outlined.AutoAwesome,
+                                        label = intent.label,
+                                        isAccent = true,
+                                        onClick = {
+                                            onDismiss()
+                                            onEditIntent(intent)
+                                        },
+                                        testTag = "viewer_edit_${intent.id}",
+                                    )
+                                }
+                            }
+                        }
+                        Surface(
                         shape = RoundedCornerShape(32.dp),
                         color = Color(0xFF1E1F24).copy(alpha = 0.92f),
                         border = androidx.compose.foundation.BorderStroke(
@@ -318,13 +349,13 @@ fun FullScreenImageViewer(
                                     testTag = "viewer_report_button",
                                 )
                             }
+                            }
                         }
                     }
                 }
             }
         }
     }
-}
 
 @Composable
 private fun ViewerActionButton(

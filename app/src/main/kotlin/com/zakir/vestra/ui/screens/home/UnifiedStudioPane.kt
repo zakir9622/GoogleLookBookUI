@@ -57,6 +57,7 @@ import com.zakir.vestra.shared.cloud.AiCapability
 import com.zakir.vestra.shared.cloud.CloudModelCatalog
 import com.zakir.vestra.shared.cloud.FreeCloudDiscovery
 import com.zakir.vestra.shared.cloud.GenerativeState
+import com.zakir.vestra.shared.cloud.ImageEditIntent
 import com.zakir.vestra.shared.cloud.StyleModifierCatalog
 import com.zakir.vestra.shared.content.LookbookCopy
 import com.zakir.vestra.shared.local.LocalModelCatalog
@@ -464,6 +465,16 @@ fun UnifiedStudioPane(
                                 },
                                 onCreateVariation = { candidateId ->
                                     viewModel.createImageVariation(feedItem.id, candidateId)
+                                },
+                                onEditIntent = { intent: ImageEditIntent ->
+                                    val sourcePath = when (val result = feedItem.state) {
+                                        is GenerativeState.ImageReady -> result.path
+                                        is GenerativeState.ImageBatchReady -> result.batch.selectedCandidate?.path
+                                        else -> feedItem.referenceUri
+                                    }
+                                    viewModel.setPrompt("${feedItem.prompt}. ${intent.promptClause}")
+                                    viewModel.setReference(sourcePath)
+                                    onGenerate()
                                 },
                                 onRetry = {
                                     viewModel.setPrompt(feedItem.prompt)
