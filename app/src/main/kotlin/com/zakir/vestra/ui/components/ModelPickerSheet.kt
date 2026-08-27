@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -76,6 +77,8 @@ fun ModelPickerSheet(
     onDeviceEntries: List<OnDevicePickerEntry> = emptyList(),
     onSelectDevice: ((OnDevicePickerEntry) -> Unit)? = null,
     health: ModelHealthTracker? = null,
+    cloudGenerationEnabled: Boolean = true,
+    hasCredential: (CloudModelProvider) -> Boolean = { !it.requiresApiKey },
 ) {
     var query by remember { mutableStateOf("") }
     val selectable = remember(models) {
@@ -182,7 +185,7 @@ fun ModelPickerSheet(
             ) {
                 if (query.isNotBlank()) {
                     items(filtered, key = { it.id }) { model ->
-                        ModelPickerRow(model, selectedId, onSelect, onDismiss, health)
+                        ModelPickerRow(model, selectedId, onSelect, onDismiss, health, cloudGenerationEnabled, hasCredential)
                     }
                 } else {
                     if (onDeviceEntries.isNotEmpty()) {
@@ -213,7 +216,7 @@ fun ModelPickerSheet(
                             )
                         }
                         items(models, key = { it.id }) { model ->
-                            ModelPickerRow(model, selectedId, onSelect, onDismiss, health)
+                            ModelPickerRow(model, selectedId, onSelect, onDismiss, health, cloudGenerationEnabled, hasCredential)
                         }
                     }
                 }
@@ -314,10 +317,21 @@ private fun ModelPickerRow(
     onSelect: (CloudModelProvider) -> Unit,
     onDismiss: () -> Unit,
     health: ModelHealthTracker?,
+    cloudGenerationEnabled: Boolean,
+    hasCredential: (CloudModelProvider) -> Boolean,
 ) {
     val selected = model.id == selectedId
     val support = health?.effectiveSupport(model) ?: CloudModelContracts.forProvider(model).support
     val blocked = support == ModelSupportLevel.UNSUPPORTED
+    val credentialPresent = hasCredential(model)
+    val readyForRequest = !blocked && cloudGenerationEnabled && credentialPresent
+    val contract = CloudModelContracts.forProvider(model)
+    val readinessColor = when {
+        readyForRequest -> Color(0xFF32C48D)
+        support == ModelSupportLevel.READY -> VestraColors.Accent
+        support == ModelSupportLevel.DEGRADED -> VestraColors.AccentSoft
+        else -> VestraColors.InkMuted
+    }
     Row(
         Modifier
             .fillMaxWidth()
@@ -349,13 +363,7 @@ private fun ModelPickerRow(
                 Modifier
                     .size(10.dp)
                     .clip(CircleShape)
-                    .background(
-                        when (support) {
-                            ModelSupportLevel.READY -> VestraColors.Accent
-                            ModelSupportLevel.DEGRADED -> VestraColors.AccentSoft
-                            ModelSupportLevel.UNSUPPORTED -> VestraColors.InkMuted
-                        },
-                    ),
+                    .background(readinessColor),
             )
         }
         Spacer(Modifier.size(12.dp))
@@ -371,16 +379,38 @@ private fun ModelPickerRow(
                 buildString {
                     append(QualityRating.label(model))
                     append(" · ")
-                    append(CloudModelContracts.liveStatusLabel(model, health))
+                    append(
+                        when {
+                            blocked -> "not selectable"
+                            !cloudGenerationEnabled -> "cloud disabled"
+                            !credentialPresent -> "free with key"
+                            else -> "ready to generate"
+                        },
+                    )
                     append(" · ")
                     append(model.platform.name.replace('_', ' ').lowercase())
-                    if (blocked) append(" · not selectable")
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = VestraColors.InkMuted,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            Text(
+                text = model.description,
+                style = MaterialTheme.typography.labelSmall,
+                color = VestraColors.InkMuted,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (contract.requiredInputs.isNotEmpty()) {
+                Text(
+                    text = "Accepts: ${contract.requiredInputs.joinToString(" · ")}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = VestraColors.InkMuted,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         if (selected) {
             Icon(

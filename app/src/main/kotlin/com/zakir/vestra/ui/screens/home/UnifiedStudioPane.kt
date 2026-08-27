@@ -165,12 +165,10 @@ fun UnifiedStudioPane(
     var advancedExpanded by remember { mutableStateOf(false) }
 
     val pickerModels = remember(effectiveCapability, freeCloudDiscovery, cloudModelsEnabled) {
-        if (!cloudModelsEnabled) {
-            emptyList()
-        } else {
-            freeCloudDiscovery?.selectable(viewModel.appSettings, effectiveCapability)
-                ?: CloudModelCatalog.forCapability(effectiveCapability)
-        }
+        // Model discovery is always visible in the composer. Request preflight, rather than a
+        // hidden empty list, explains whether a selected cloud model needs a key or opt-in.
+        freeCloudDiscovery?.selectable(viewModel.appSettings, effectiveCapability)
+            ?: CloudModelCatalog.forCapability(effectiveCapability)
     }
     val onDeviceEntries = remember(
         packStates,
@@ -593,6 +591,10 @@ fun UnifiedStudioPane(
             selectedId = selectedId,
             onDeviceEntries = onDeviceEntries,
             health = viewModel.appSettings.modelHealth,
+            cloudGenerationEnabled = cloudModelsEnabled,
+            hasCredential = { candidate ->
+                !candidate.requiresApiKey || !viewModel.appSettings.apiKeyFor(candidate).isNullOrBlank()
+            },
             onSelect = { chosen ->
                 when (effectiveCapability) {
                     AiCapability.IMAGE_GEN -> viewModel.appSettings.setImageGenProvider(chosen.id)
