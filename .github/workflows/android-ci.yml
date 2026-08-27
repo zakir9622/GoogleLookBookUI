@@ -88,6 +88,16 @@ jobs:
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug
 
+      - name: Upload Spatial UI visual evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: spatial-ui-visual-evidence
+          path: |
+            build/screenshots/**/*.png
+            app/build/screenshots/**/*.png
+          if-no-files-found: warn
+          retention-days: 14
+
       - uses: actions/upload-artifact@v4
         with:
           name: vestra-ci-debug-apk
