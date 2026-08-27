@@ -366,19 +366,31 @@ class ScreenshotTest {
     @Test
     fun composerDockLight() {
         shoot("05b-composer-dock-light", darkTheme = false) {
-            PromptComposer(
-                prompt = "Emerald abaya in a Lahore bazaar, soft afternoon light",
-                onPromptChange = {},
-                modelLabel = "Local tiny-SD (offline)",
-                assistCount = 2,
-                busy = false,
-                enabled = true,
-                onModelClick = {},
-                onAssistsClick = {},
-                onSend = {},
-                onStop = {},
-                placeholder = "Describe the image…",
-            )
+            androidx.compose.foundation.layout.Column(
+                androidx.compose.ui.Modifier.fillMaxSize(),
+            ) {
+                androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.weight(1f))
+                androidx.compose.foundation.layout.Column(
+                    androidx.compose.ui.Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp)
+                        .padding(bottom = 10.dp, top = 4.dp),
+                ) {
+                    PromptComposer(
+                        prompt = "Emerald abaya in a Lahore bazaar, soft afternoon light",
+                        onPromptChange = {},
+                        modelLabel = "Local tiny-SD (offline)",
+                        assistCount = 2,
+                        busy = false,
+                        enabled = true,
+                        onModelClick = {},
+                        onAssistsClick = {},
+                        onSend = {},
+                        onStop = {},
+                        placeholder = "Describe the image…",
+                    )
+                }
+            }
         }
     }
 
