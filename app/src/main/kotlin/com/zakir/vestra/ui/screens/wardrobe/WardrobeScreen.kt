@@ -28,11 +28,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -76,14 +79,27 @@ fun WardrobeScreen(
     wardrobe: WardrobeRepository,
     onBack: (() -> Unit)? = null,
     onStartTryOn: (() -> Unit)? = null,
+    onReusePrompt: ((String) -> Unit)? = null,
 ) {
     val entries by wardrobe.entries.collectAsState()
     val context = LocalContext.current
     var favoritesOnly by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
     var detail by remember { mutableStateOf<WardrobeEntry?>(null) }
     var pendingDelete by remember { mutableStateOf<WardrobeEntry?>(null) }
-    val visible = remember(entries, favoritesOnly) {
-        if (favoritesOnly) entries.filter { it.favorited } else entries
+    val visible = remember(entries, favoritesOnly, query) {
+        val base = if (favoritesOnly) entries.filter { it.favorited } else entries
+        val normalized = query.trim().lowercase()
+        if (normalized.isBlank()) base else base.filter { entry ->
+            listOfNotNull(
+                entry.personLabel,
+                entry.garmentUri,
+                entry.prompt,
+                entry.providerId,
+                entry.batchId,
+                entry.candidateId,
+            ).any { it.lowercase().contains(normalized) }
+        }
     }
 
     detail?.let { entry ->
@@ -118,6 +134,7 @@ fun WardrobeScreen(
                 detail = null
                 pendingDelete = entry
             },
+            onReusePrompt = onReusePrompt,
         )
     }
 
@@ -171,6 +188,30 @@ fun WardrobeScreen(
                     label = { Text("Favorites (${entries.count { it.favorited }})") },
                 )
             }
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("wardrobe_search"),
+                singleLine = true,
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = "Search saved creations",
+                        tint = VestraColors.Accent,
+                    )
+                },
+                placeholder = { Text("Search prompts, styles, people, or engines") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = VestraColors.Accent.copy(alpha = 0.55f),
+                    unfocusedBorderColor = VestraColors.GlassBorder,
+                    focusedContainerColor = VestraColors.GlassFill,
+                    unfocusedContainerColor = VestraColors.GlassFill,
+                ),
+                shape = RoundedCornerShape(RadiusTokens.md),
+            )
             Spacer(Modifier.height(12.dp))
             if (visible.isEmpty()) {
                 GlassEmptyState(
@@ -332,6 +373,7 @@ private fun LookDetailDialog(
     onShare: () -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
+    onReusePrompt: ((String) -> Unit)? = null,
 ) {
     val file = File(entry.imagePath)
     val isVideo = file.extension.lowercase() in setOf("mp4", "webm")
@@ -403,6 +445,13 @@ private fun LookDetailDialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (onReusePrompt != null) {
+                        Spacer(Modifier.height(8.dp))
+                        GlassSecondaryButton(
+                            text = "Reuse creative direction",
+                            onClick = { onReusePrompt(savedPrompt) },
+                        )
+                    }
                 }
                 if (batchCandidates.size > 1) {
                     Spacer(Modifier.height(10.dp))
