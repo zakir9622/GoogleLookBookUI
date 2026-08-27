@@ -88,6 +88,13 @@ jobs:
       - name: Unit tests
         run: ./gradlew :shared:testDebugUnitTest :app:testDebugUnitTest
 
+      - name: Render spatial UI visual fixtures
+        run: ./gradlew :app:testDebugUnitTest --tests com.zakir.vestra.ui.ScreenshotTest --rerun-tasks
+
+      - name: Android lint and accessibility baseline
+        run: ./gradlew :app:lintDebug
+        continue-on-error: true
+
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug
 
@@ -106,6 +113,14 @@ jobs:
         with:
           name: kotlin-static-quality
           path: app/build/reports/detekt/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Android lint evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-lint-accessibility
+          path: app/build/reports/lint-results-*
           if-no-files-found: warn
           retention-days: 14
 
