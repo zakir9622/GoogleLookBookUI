@@ -342,9 +342,9 @@ class ScreenshotTest {
         }
     }
 
-    /** Paired runtime-state fixtures verify semantic surface colors in both appearance modes. */
+    /** Dark runtime-state fixture verifies semantic glass and progress surfaces. */
     @Test
-    fun generationOverlayAppearanceModes() {
+    fun generationOverlayDark() {
         shoot("12-generation-overlay-dark") {
             com.zakir.vestra.ui.components.GenerationStateOverlay(
                 isGenerating = true,
@@ -356,6 +356,11 @@ class ScreenshotTest {
                 onCancel = {},
             )
         }
+    }
+
+    /** Light runtime-state fixture verifies the paired theme retains readable generation feedback. */
+    @Test
+    fun generationOverlayLight() {
         shoot("13-generation-overlay-light", darkTheme = false) {
             com.zakir.vestra.ui.components.GenerationStateOverlay(
                 isGenerating = true,
