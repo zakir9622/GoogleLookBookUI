@@ -57,6 +57,7 @@ import com.zakir.vestra.shared.cloud.AiCapability
 import com.zakir.vestra.shared.cloud.CloudModelCatalog
 import com.zakir.vestra.shared.cloud.FreeCloudDiscovery
 import com.zakir.vestra.shared.cloud.GenerativeState
+import com.zakir.vestra.shared.cloud.StyleModifierCatalog
 import com.zakir.vestra.shared.content.LookbookCopy
 import com.zakir.vestra.shared.local.LocalModelCatalog
 import com.zakir.vestra.shared.packs.ModelPackManager
@@ -70,6 +71,7 @@ import com.zakir.vestra.ui.components.ModelPickerSheet
 import com.zakir.vestra.ui.components.OnDevicePickerEntry
 import com.zakir.vestra.ui.components.PromptComposer
 import com.zakir.vestra.ui.components.PromptCurator
+import com.zakir.vestra.ui.components.PromptDirectorSheet
 import com.zakir.vestra.ui.components.ResultPane
 import com.zakir.vestra.ui.theme.VestraColors
 import kotlinx.coroutines.Dispatchers
@@ -114,6 +116,7 @@ fun UnifiedStudioPane(
     val qualityGuard by viewModel.qualityGuard.collectAsState()
     val analyzeReference by viewModel.analyzeReference.collectAsState()
     val lastUsedId by viewModel.lastUsedProviderId.collectAsState()
+    val recipe by viewModel.promptRecipe.collectAsState()
     val packStates by packManager?.states?.collectAsState()
         ?: remember { mutableStateOf(emptyMap()) }
 
@@ -156,6 +159,7 @@ fun UnifiedStudioPane(
     }
 
     var showModelPicker by remember { mutableStateOf(false) }
+    var showPromptDirector by remember { mutableStateOf(false) }
     var advancedExpanded by remember { mutableStateOf(false) }
 
     val pickerModels = remember(effectiveCapability, freeCloudDiscovery, cloudModelsEnabled) {
@@ -493,6 +497,9 @@ fun UnifiedStudioPane(
             busy = busy,
             enabled = true,
             onModelClick = { showModelPicker = true },
+            onPromptDirectorClick = if (capability == AiCapability.IMAGE_GEN) {
+                { showPromptDirector = true }
+            } else null,
             onSend = ::onGenerate,
             onStop = { viewModel.cancel() },
             placeholder = placeholder,
@@ -528,6 +535,24 @@ fun UnifiedStudioPane(
                     onCreative = { viewModel.setCreativeMode(!creative) },
                 )
             },
+        )
+    }
+
+    if (showPromptDirector) {
+        PromptDirectorSheet(
+            recipe = recipe,
+            modifiers = StyleModifierCatalog.all,
+            onRecipeChange = { next ->
+                viewModel.setPromptSubject(next.subject)
+                viewModel.setPromptSetting(next.setting)
+                viewModel.setPromptMood(next.mood)
+                viewModel.setPromptLighting(next.lighting)
+                viewModel.setPromptComposition(next.composition)
+                viewModel.setPromptFinish(next.finish)
+            },
+            onToggleModifier = viewModel::toggleStyleModifier,
+            onReset = viewModel::clearPromptDirector,
+            onDismiss = { showPromptDirector = false },
         )
     }
 
