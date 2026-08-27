@@ -54,30 +54,34 @@ private data class OnboardingPage(val title: String, val body: String, val isPer
 
 private val pages = listOf(
     OnboardingPage(
-        "Always the perfect look",
-        "Generate abaya, hijab, niqab, and shalwar looks with on-device AI — fully offline after the Pro pack.",
+        "Start a creative direction",
+        "Describe an idea, choose a ready engine, and compare two directions before you keep what feels right.",
     ),
     OnboardingPage(
-        "Cast your scene",
-        "Set ethnicity, body type, hair coverage, color, and scenario. One garment photo becomes a full shoot.",
+        "Shape the details",
+        "Open Prompt Director only when you need it for mood, lighting, composition, finish, and reusable style choices.",
     ),
     OnboardingPage(
-        "Create stills, video, code",
-        "Free cloud studios for shoppers, sellers, and makers — Image, Video, and Code beside local try-on.",
+        "Create across mediums",
+        "Move between image, motion, voice, and code while your saved directions stay ready to remix in one private library.",
     ),
     OnboardingPage(
-        "Keys unlock free cloud",
-        "Paste free Hugging Face, Groq, or OpenRouter tokens in Settings. Local Lite/Pro never need a key.",
+        "Privacy stays visible",
+        "Local engines work without a provider key. Cloud tools are clearly labeled and only use tokens you choose to add in Settings.",
     ),
     OnboardingPage(
-        "Mandatory Permissions Check",
-        "The Lookbook requires on-device permissions for camera try-on, background pack downloads, and voice prompts. Tap any missing item below to allow.",
+        "Finish your setup",
+        "Allow only the permissions you want to use for camera-based creation, voice prompts, notifications, or background model downloads.",
         isPermissionPage = true,
     ),
 )
 
 @Composable
-fun OnboardingScreen(appSettings: AppSettings, onDone: () -> Unit) {
+fun OnboardingScreen(
+    appSettings: AppSettings,
+    onDone: () -> Unit,
+    requestStartupPermissions: Boolean = true,
+) {
     var page by remember { mutableIntStateOf(0) }
     val slide = pages[page]
 
@@ -86,7 +90,8 @@ fun OnboardingScreen(appSettings: AppSettings, onDone: () -> Unit) {
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { _ -> }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(requestStartupPermissions) {
+        if (!requestStartupPermissions) return@LaunchedEffect
         val perms = buildList {
             if (Build.VERSION.SDK_INT >= 33) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
@@ -114,7 +119,7 @@ fun OnboardingScreen(appSettings: AppSettings, onDone: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
-                LookbookCopy.PRODUCT_TAGLINE,
+                "PRIVATE AI CREATION STUDIO",
                 style = MaterialTheme.typography.labelLarge,
                 color = VestraColors.Accent,
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -122,7 +127,14 @@ fun OnboardingScreen(appSettings: AppSettings, onDone: () -> Unit) {
 
             Spacer(Modifier.height(16.dp))
 
-            // Collage strip — first viewport brand + atmosphere (no secondary marketing clutter).
+            Text(
+                text = "STEP ${page + 1} OF ${pages.size}",
+                style = MaterialTheme.typography.labelSmall,
+                color = VestraColors.InkMuted,
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+            )
+
+            // Spatial direction strip — a compact sense of depth without adding content clutter.
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -143,7 +155,7 @@ fun OnboardingScreen(appSettings: AppSettings, onDone: () -> Unit) {
                         .clip(RoundedCornerShape(20.dp))
                         .background(
                             Brush.linearGradient(
-                                listOf(Color(0xFF3D2A18), VestraColors.SaffronDeep),
+                                listOf(VestraColors.Accent.copy(alpha = 0.88f), VestraColors.AccentSoft.copy(alpha = 0.38f)),
                             ),
                         ),
                 )
@@ -155,7 +167,7 @@ fun OnboardingScreen(appSettings: AppSettings, onDone: () -> Unit) {
                         .clip(RoundedCornerShape(20.dp))
                         .background(
                             Brush.linearGradient(
-                                listOf(Color(0xFF1E2430), VestraColors.AccentSoft.copy(alpha = 0.7f)),
+                                listOf(VestraColors.SurfaceRaised, VestraColors.ModalityCode.copy(alpha = 0.72f)),
                             ),
                         ),
                 )
@@ -168,7 +180,7 @@ fun OnboardingScreen(appSettings: AppSettings, onDone: () -> Unit) {
                         .clip(RoundedCornerShape(20.dp))
                         .background(
                             Brush.linearGradient(
-                                listOf(Color(0xFF2C1810), Color(0xFF5C3A22)),
+                                listOf(VestraColors.ModalityVideo.copy(alpha = 0.76f), VestraColors.SurfaceFloating),
                             ),
                         ),
                 )
@@ -225,16 +237,16 @@ fun OnboardingScreen(appSettings: AppSettings, onDone: () -> Unit) {
 
             if (page < pages.lastIndex) {
                 GlassPrimaryButton(
-                    text = "Continue",
+                    text = "Next direction",
                     onClick = { page += 1 },
                 )
                 TextButton(onClick = {
                     appSettings.setOnboardingComplete()
                     onDone()
-                }) { Text("Skip") }
+                }) { Text("Explore the studio") }
             } else {
                 GlassPrimaryButton(
-                    text = "Get started",
+                    text = "Open Creative Studio",
                     onClick = {
                         appSettings.setOnboardingComplete()
                         onDone()
